@@ -1,0 +1,78 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 90bd346..4f8ec2c 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -2,7 +2,6 @@ from __future__ import annotations
+ 
+ import asyncio
+ import functools
+-import re
+ import sys
+ import typing
+ from contextlib import contextmanager
+@@ -85,5 +84,14 @@ def collapse_excgroups() -> typing.Generator[None, None, None]:
+ 
+ def get_route_path(scope: Scope) -> str:
+     root_path = scope.get("root_path", "")
+-    route_path = re.sub(r"^" + root_path, "", scope["path"])
++    route_path = scope["path"]
++    if not route_path.startswith(root_path):
++        return route_path
++
++    if route_path == root_path:
++        return ""
++
++    if route_path[len(root_path)] == "/":
++        return route_path[len(root_path) :]
++
+     return route_path
+diff --git a/tests/test__utils.py b/tests/test__utils.py
+index 2ecf474..6f09aff 100644
+--- a/tests/test__utils.py
++++ b/tests/test__utils.py
+@@ -1,7 +1,13 @@
+ import functools
+ from typing import Any
+ 
+-from starlette._utils import is_async_callable
++from starlette._utils import get_route_path, is_async_callable
++
++
++def test_get_route_path() -> None:
++    assert get_route_path({"path": "/root/path", "root_path": "/root"}) == "/path"
++    assert get_route_path({"path": "/root", "root_path": "/root"}) == ""
++    assert get_route_path({"path": "/root-queue/path", "root_path": "/root"}) == "/root-queue/path"
+ 
+ 
+ def test_async_func() -> None:
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index 9fa44de..e35761d 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -1221,6 +1221,12 @@ echo_paths_routes = [
+         name="path",
+         methods=["GET"],
+     ),
++    Route(
++        "/root-queue/path",
++        functools.partial(echo_paths, name="root-queue-path"),
++        name="root-queue-path",
++        methods=["GET"],
++    ),
+     Mount("/asgipath", app=functools.partial(pure_asgi_echo_paths, name="asgipath")),
+     Mount(
+         "/sub",
+@@ -1247,6 +1253,13 @@ def test_paths_with_root_path(test_client_factory: TestClientFactory) -> None:
+         "path": "/root/path",
+         "root_path": "/root",
+     }
++    response = client.get("/root-queue/path")
++    assert response.status_code == 200
++    assert response.json() == {
++        "name": "root-queue-path",
++        "path": "/root-queue/path",
++        "root_path": "/root",
++    }
+     response = client.get("/root/asgipath/")
+     assert response.status_code == 200
+     assert response.json() == {

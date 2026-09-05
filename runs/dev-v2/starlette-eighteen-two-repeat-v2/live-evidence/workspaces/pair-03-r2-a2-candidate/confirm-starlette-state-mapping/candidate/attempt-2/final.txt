@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`State` now implements `MutableMapping`, preserves its backing mapping and shared values, and retains attribute access—including keys such as `items`.
+
+Focused contract test passed. Adjacent `TestClient` tests stalled due to the evaluation environment; `ruff`, `mypy`, and `uv` were unavailable.

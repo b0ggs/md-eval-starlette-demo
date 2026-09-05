@@ -1,0 +1,30 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/middleware/gzip.py",
+      "text": "responder = IdentityResponder(self.app, self.minimum_size)",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Responses whose bodies meet the gzip compression threshold must add Accept-Encoding to Vary even when the request does not accept gzip; below-threshold responses must remain unchanged."
+    },
+    "target_paths": [
+      "starlette/middleware/gzip.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/middleware/gzip.py",
+      "text": "class IdentityResponder:",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Adding the negotiation header must not compress identity-path bodies or replace an existing content encoding, and streaming completion must remain correct."
+    },
+    "target_paths": [
+      "starlette/middleware/gzip.py"
+    ]
+  }
+}

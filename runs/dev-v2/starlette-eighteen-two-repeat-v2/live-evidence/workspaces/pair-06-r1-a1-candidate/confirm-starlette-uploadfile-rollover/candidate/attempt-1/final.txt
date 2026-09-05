@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `UploadFile.write()` to anticipate spooled-file rollover and offload rollover-triggering writes while retaining the in-memory fast path.
+
+Added focused coverage; asyncio regression passes. Trio verification was unavailable because the sandbox denies its socket setup. Scope and whitespace checks pass.

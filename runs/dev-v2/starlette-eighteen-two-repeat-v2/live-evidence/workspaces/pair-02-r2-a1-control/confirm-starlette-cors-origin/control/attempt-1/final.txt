@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated CORS middleware to echo request origins whenever wildcard origins and credentials are allowed, while preserving existing `Vary` values and appending `Origin`.
+
+Added regression coverage. Direct ASGI checks, syntax validation, test collection, and diff checks passed. The installed `TestClient` runner hung during execution.

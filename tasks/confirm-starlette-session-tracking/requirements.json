@@ -1,0 +1,32 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/middleware/sessions.py",
+      "text": "if session.modified and session:",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Session middleware must emit Set-Cookie only when session data is modified; reading an unchanged session must not rewrite the cookie."
+    },
+    "target_paths": [
+      "starlette/middleware/sessions.py",
+      "starlette/requests.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/middleware/sessions.py",
+      "text": "headers.add_vary_header(\"Cookie\")",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Accessing session data must add Cookie to Vary while preserving any existing Vary values."
+    },
+    "target_paths": [
+      "starlette/middleware/sessions.py",
+      "starlette/requests.py"
+    ]
+  }
+}

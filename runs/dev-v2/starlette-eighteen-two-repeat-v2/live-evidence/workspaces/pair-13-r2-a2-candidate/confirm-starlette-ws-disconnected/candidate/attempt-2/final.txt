@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added public `WebSocketDisconnected(RuntimeError)` and applied it to disconnected low-level send/receive operations and valid receive helpers. Existing messages and error precedence remain unchanged.
+
+Added focused tests. Asyncio assertions passed; Trio was blocked by sandbox socket permissions, and the adjacent TestClient regression timed out. `git diff --check` passed.

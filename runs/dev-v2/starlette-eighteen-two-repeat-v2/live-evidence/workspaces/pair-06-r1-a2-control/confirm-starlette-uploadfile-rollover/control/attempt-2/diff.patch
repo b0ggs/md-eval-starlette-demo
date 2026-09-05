@@ -1,0 +1,121 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index 70dacd0..c7b8a19 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -438,14 +438,21 @@ class UploadFile:
+         rolled_to_disk = getattr(self.file, "_rolled", True)
+         return not rolled_to_disk
+ 
++    def _will_roll(self, size_to_add: int) -> bool:
++        if not self._in_memory:
++            return True
++
++        max_size = getattr(self.file, "_max_size", 0)
++        return bool(max_size and self.file.tell() + size_to_add > max_size)
++
+     async def write(self, data: bytes) -> None:
+         if self.size is not None:
+             self.size += len(data)
+ 
+-        if self._in_memory:
+-            self.file.write(data)
+-        else:
++        if self._will_roll(len(data)):
+             await run_in_threadpool(self.file.write, data)
++        else:
++            self.file.write(data)
+ 
+     async def read(self, size: int = -1) -> bytes:
+         if self._in_memory:
+diff --git a/tests/test_datastructures.py b/tests/test_datastructures.py
+index 0e7d35c..b57e2d5 100644
+--- a/tests/test_datastructures.py
++++ b/tests/test_datastructures.py
+@@ -1,9 +1,11 @@
+ import io
++from collections.abc import Callable
+ from tempfile import SpooledTemporaryFile
+ from typing import BinaryIO
+ 
+ import pytest
+ 
++import starlette.datastructures
+ from starlette.datastructures import (
+     URL,
+     CommaSeparatedStrings,
+@@ -359,6 +361,29 @@ async def test_uploadfile_rolling(max_size: int) -> None:
+     await file.close()
+ 
+ 
++@pytest.mark.anyio
++async def test_uploadfile_write_uses_threadpool_for_rollover(monkeypatch: pytest.MonkeyPatch) -> None:
++    stream: BinaryIO = SpooledTemporaryFile(max_size=4)  # type: ignore[assignment]
++    file = UploadFile(filename="file", file=stream, size=0)
++    calls: list[tuple[Callable[..., object], tuple[object, ...]]] = []
++
++    async def run_in_threadpool(func: Callable[..., object], *args: object) -> object:
++        calls.append((func, args))
++        return func(*args)
++
++    monkeypatch.setattr(starlette.datastructures, "run_in_threadpool", run_in_threadpool)
++
++    await file.write(b"data")
++    assert calls == []
++    assert not getattr(stream, "_rolled")
++
++    await file.write(b"!")
++    assert calls == [(stream.write, (b"!",))]
++    assert getattr(stream, "_rolled")
++
++    await file.close()
++
++
+ def test_formdata() -> None:
+     stream = io.BytesIO(b"data")
+     upload = UploadFile(filename="file", file=stream, size=4)
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,3 @@
++{
++  "tests/test_datastructures.py::test_uploadfile_write_uses_threadpool_for_rollover[trio]": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,4 @@
++[
++  "tests/test_datastructures.py::test_uploadfile_write_uses_threadpool_for_rollover[asyncio]",
++  "tests/test_datastructures.py::test_uploadfile_write_uses_threadpool_for_rollover[trio]"
++]

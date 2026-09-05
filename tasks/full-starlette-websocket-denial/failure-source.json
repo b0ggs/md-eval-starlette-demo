@@ -1,0 +1,23 @@
+{
+  "base_sha": "a0bcc26612c9c344737cd59fb4ef847326adf37a",
+  "checker_command": "python3 check.py WORKSPACE",
+  "extraction_note": "section14-full-scale-preflight-v1: no inherited evaluator instructions, hidden Git trees/submodules, cache artifacts, symlinks, LFS pointers, or leaked private fix tests; full-repository build metadata, native content, pytest/network-test source, .gitattributes, and non-hiding .gitignore files are retained; every included task file passes git check-ignore; public and reference each begin with all 126 tracked files from the complete pinned pre-fix git archive, with only .git metadata absent; no source, tests, documentation, examples, CI, build, lock, or dependency metadata was pruned; the tracked .gitignore is retained byte-for-byte and hides none of the included task bytes; reference overlays only the exact non-test fix path starlette/responses.py; private contains the exact two upstream test paths changed by the merged fix, which the checker overlays only in scratch space; GitHub records standalone issue 3048 closed on 2026-03-15 and merge PR 3189 as a three-file change with 100 insertions and 23 deletions; solution and fix-test hashes are SHA-256 of git diff --no-ext-diff --binary from base_sha to fix_sha restricted respectively to the one non-test path and two test paths",
+  "fix_sha": "9ee951980bae776103715b66305f807d9e8245da",
+  "fix_test_patch_sha256": "a7781d3a7d1ced37c76c5e62707200ff147c10b9f90409b14cc1dd81bb2c3cd2",
+  "issue_closed_at": "2026-03-15T11:59:17Z",
+  "issue_url": "https://github.com/Kludex/starlette/issues/3048",
+  "license_paths": [
+    {
+      "path": "public/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    },
+    {
+      "path": "reference/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    }
+  ],
+  "removed_instruction_paths": [],
+  "solution_patch_sha256": "5140520f607fd631aabaf311f0a6a9f33608bfdb149b91f2533fbef175dd5662",
+  "source_url": "https://github.com/Kludex/starlette",
+  "spdx_id": "BSD-3-Clause"
+}

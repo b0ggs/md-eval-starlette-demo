@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to propagate downstream background-task exceptions after the response body completes. Added a regression test confirming final-body delivery and exception propagation.
+
+Verification:
+
+- Focused regression: passed
+- Existing background-task ordering regression: passed
+- Trio unavailable because sandbox socket operations are denied; asyncio passed
+- `git diff --check`: clean

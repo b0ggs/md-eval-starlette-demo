@@ -1,0 +1,30 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/responses.py",
+      "text": "body\": b\"\\r\\n\"",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Multipart byte-range responses must use CRLF separators and produce parts that a standards-compliant multipart parser can consume."
+    },
+    "target_paths": [
+      "starlette/responses.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/responses.py",
+      "text": "static_header_part_len = 49",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Multipart byte-range body chunks, terminal boundary, and Content-Length must agree for GET, HEAD, reordered ranges, and small streaming chunks."
+    },
+    "target_paths": [
+      "starlette/responses.py"
+    ]
+  }
+}

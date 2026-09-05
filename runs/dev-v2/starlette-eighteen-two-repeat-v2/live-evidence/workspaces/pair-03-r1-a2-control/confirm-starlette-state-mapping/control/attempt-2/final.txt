@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`State` now implements `MutableMapping`, preserves attribute access (including keys like `items`), and retains custom backing mappings and shared values.
+
+Added request-state regression coverage. Verified 20 targeted tests pass; diff checks are clean.

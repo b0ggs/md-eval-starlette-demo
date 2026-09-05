@@ -1,0 +1,8 @@
+Implemented all R1–R3 requirements:
+
+- Added shared strict authority parsing and IPv6-safe scope fallback.
+- Updated Host routing and TrustedHostMiddleware validation.
+- Hardened HTTPS redirects, including padded default ports and 400 fallback.
+- Added regression tests.
+
+Verification: 37 focused tests passed plus direct ASGI contract checks. Full Trio tests are sandbox-blocked by denied `socketpair()`.

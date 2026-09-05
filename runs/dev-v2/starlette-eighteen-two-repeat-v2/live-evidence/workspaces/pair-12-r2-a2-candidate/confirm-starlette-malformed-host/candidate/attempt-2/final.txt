@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+- Added strict shared authority parsing, IP-literal validation, port policies, IPv6 fallback brackets, and safe HTTPS redirects/400 responses.
+- Updated Host routing and TrustedHostMiddleware, including wildcard validation.
+- Added R1–R3 regression coverage. Twelve direct cases completed; adjacent regression passed (`6 passed`). Client-backed tests timed out due a TestClient hang; `ruff` was unavailable. Diff checks passed.

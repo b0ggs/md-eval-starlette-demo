@@ -1,0 +1,28 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_websockets.py::test_websocket_close_reason",
+    "tests/test_websockets.py::test_send_json_invalid_mode",
+    "tests/test_websockets.py::test_receive_json_invalid_mode",
+    "tests/test_websockets.py::test_send_before_accept",
+    "tests/test_websockets.py::test_receive_before_accept"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirement_probes": {
+    "R1": "from starlette.websockets import WebSocketDisconnected\nassert WebSocketDisconnected is not RuntimeError\nassert issubclass(WebSocketDisconnected, RuntimeError)",
+    "R2": "import anyio\nfrom starlette.websockets import WebSocket,WebSocketDisconnect,WebSocketState\nscope={'type':'websocket','path':'/','headers':[]}\nasync def receive():\n    return {'type':'websocket.disconnect','code':1001,'reason':'done'}\nasync def send(message):\n    pass\nasync def exercise():\n    websocket=WebSocket(scope,receive,send)\n    try:\n        await websocket.receive_json(mode='invalid')\n    except Exception as exc:\n        assert type(exc) is RuntimeError\n    else:\n        raise AssertionError('invalid mode did not raise')\n    try:\n        await websocket.send({'type':'websocket.send'})\n    except Exception as exc:\n        assert type(exc) is RuntimeError\n    else:\n        raise AssertionError('invalid transition did not raise')\n    websocket.application_state=WebSocketState.CONNECTED\n    websocket.client_state=WebSocketState.CONNECTED\n    try:\n        await websocket.receive_text()\n    except Exception as exc:\n        assert type(exc) is WebSocketDisconnect\n        assert exc.code == 1001 and exc.reason == 'done'\n    else:\n        raise AssertionError('peer disconnect did not raise')\nanyio.run(exercise)"
+  },
+  "requirements": {
+    "R1": [
+      "tests/test_websockets.py::test_duplicate_close",
+      "tests/test_websockets.py::test_duplicate_disconnect"
+    ],
+    "R2": [
+      "tests/test_websockets.py::test_receive_text_before_accept",
+      "tests/test_websockets.py::test_receive_bytes_before_accept",
+      "tests/test_websockets.py::test_receive_json_before_accept"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-ws-disconnected"
+}

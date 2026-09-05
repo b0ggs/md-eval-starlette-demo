@@ -1,0 +1,19 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_testclient.py::test_testclient_asgi2",
+    "tests/test_testclient.py::test_testclient_asgi3",
+    "tests/test_testclient.py::test_client"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirements": {
+    "R1": [
+      "tests/test_testclient.py::test_debug_info_in_response_extensions"
+    ],
+    "R2": [
+      "tests/test_testclient.py::test_debug_info_in_response_extensions_with_template"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-debug-extension"
+}

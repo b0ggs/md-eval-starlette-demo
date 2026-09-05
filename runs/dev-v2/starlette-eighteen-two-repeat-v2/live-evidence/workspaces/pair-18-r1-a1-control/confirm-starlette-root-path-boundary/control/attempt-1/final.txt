@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated [get_route_path()](/workspace/starlette/_utils.py:85) to strip `root_path` only at a complete segment boundary or exact match. Added helper and routing regression tests, including `/root-queue/path`.
+
+Validation: 8 tests passed; syntax and diff checks passed. Ruff and mypy were unavailable.

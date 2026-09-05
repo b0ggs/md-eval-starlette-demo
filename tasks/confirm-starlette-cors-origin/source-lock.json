@@ -1,0 +1,21 @@
+{
+  "base_sha": "2b73aecd8377e0c189943a5f30d3dbab134f6104",
+  "fix_sha": "02b6ed7b18c741c00795010e9d716b58006af2c3",
+  "private_test_sha256": {
+    "tests/middleware/test_cors.py": "21cee63fb43a03ace629b1b960639eb7fad132276ccf5650b50aac6897922bb4"
+  },
+  "public_file_count": 73,
+  "public_inventory_sha256": "73292e415fe3ec002b33c3694ecaedfbcc7425b5ad46c43ed7af1dd1caf54026",
+  "public_solution_sha256": {
+    "starlette/middleware/cors.py": "92563ec70dd2fa86c16982780b59f2a3aad7a68477f4ef5a945a3d37e2093519"
+  },
+  "reference_file_count": 73,
+  "reference_inventory_sha256": "100e08525c64ac199d8b0f77948221ddf402e7038239aa230782c8eadcdc3625",
+  "reference_solution_sha256": {
+    "starlette/middleware/cors.py": "8813a95a62b8dc4367c91ef5b78bc7d96c1f096cda24d25d13bb61df1e4283cd"
+  },
+  "schema_version": "starlette-task-source-lock-v1",
+  "solution_paths": [
+    "starlette/middleware/cors.py"
+  ]
+}

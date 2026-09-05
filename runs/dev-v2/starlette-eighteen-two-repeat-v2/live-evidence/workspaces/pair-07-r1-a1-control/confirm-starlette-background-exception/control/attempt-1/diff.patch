@@ -1,0 +1,119 @@
+diff --git a/starlette/middleware/base.py b/starlette/middleware/base.py
+index f146984..b19bf6c 100644
+--- a/starlette/middleware/base.py
++++ b/starlette/middleware/base.py
+@@ -103,10 +103,9 @@ class BaseHTTPMiddleware:
+         request = _CachedRequest(scope, receive)
+         wrapped_receive = request.wrapped_receive
+         response_sent = anyio.Event()
++        app_exc: Exception | None = None
+ 
+         async def call_next(request: Request) -> Response:
+-            app_exc: Exception | None = None
+-
+             async def receive_or_disconnect() -> Message:
+                 if response_sent.is_set():
+                     return {"type": "http.disconnect"}
+@@ -181,6 +180,9 @@ class BaseHTTPMiddleware:
+                 response_sent.set()
+                 recv_stream.close()
+ 
++        if app_exc is not None:
++            raise app_exc
++
+     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+         raise NotImplementedError()  # pragma: no cover
+ 
+diff --git a/tests/middleware/test_base.py b/tests/middleware/test_base.py
+index 7232cfd..903c07f 100644
+--- a/tests/middleware/test_base.py
++++ b/tests/middleware/test_base.py
+@@ -297,6 +297,39 @@ async def test_run_background_tasks_even_if_client_disconnects() -> None:
+     assert background_task_run.is_set()
+ 
+ 
++@pytest.mark.anyio
++async def test_background_task_exception() -> None:
++    async def raise_runtime_error() -> None:
++        raise RuntimeError("Background task failed")
++
++    async def endpoint_with_background_task(_: Request) -> PlainTextResponse:
++        return PlainTextResponse(background=BackgroundTask(raise_runtime_error))
++
++    async def passthrough(request: Request, call_next: RequestResponseEndpoint) -> Response:
++        return await call_next(request)
++
++    app = Starlette(
++        middleware=[Middleware(BaseHTTPMiddleware, dispatch=passthrough)],
++        routes=[Route("/", endpoint_with_background_task)],
++    )
++
++    scope = {
++        "type": "http",
++        "version": "3",
++        "method": "GET",
++        "path": "/",
++    }
++
++    async def receive() -> Message:
++        raise NotImplementedError("Should not be called!")
++
++    async def send(message: Message) -> None:
++        pass
++
++    with pytest.raises(RuntimeError, match="Background task failed"):
++        await app(scope, receive, send)
++
++
+ @pytest.mark.anyio
+ async def test_do_not_block_on_background_tasks() -> None:
+     response_complete = anyio.Event()
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,3 @@
++{
++  "tests/middleware/test_base.py::test_run_background_tasks_even_if_client_disconnects[trio]": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,7 @@
++[
++  "tests/middleware/test_base.py::test_background_task_exception[asyncio]",
++  "tests/middleware/test_base.py::test_do_not_block_on_background_tasks[asyncio]",
++  "tests/middleware/test_base.py::test_run_background_tasks_even_if_client_disconnects[asyncio]",
++  "tests/middleware/test_base.py::test_run_background_tasks_even_if_client_disconnects[trio]",
++  "tests/middleware/test_base.py::test_run_context_manager_exit_even_if_client_disconnects[asyncio]"
++]

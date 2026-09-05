@@ -1,0 +1,3 @@
+IMPLEMENTED
+
+Credentialed wildcard CORS responses now echo the request origin without requiring a Cookie and append `Origin` to existing `Vary` values. Focused tests were updated; `diff --check` passed, but pytest timed out after 60 seconds without output.

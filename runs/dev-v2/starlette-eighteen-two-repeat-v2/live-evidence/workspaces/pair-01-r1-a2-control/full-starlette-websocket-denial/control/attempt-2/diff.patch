@@ -1,0 +1,465 @@
+diff --git a/starlette/responses.py b/starlette/responses.py
+index 03d82ac..8f4e812 100644
+--- a/starlette/responses.py
++++ b/starlette/responses.py
+@@ -23,7 +23,18 @@ from starlette.background import BackgroundTask
+ from starlette.concurrency import iterate_in_threadpool
+ from starlette.datastructures import URL, Headers, MutableHeaders
+ from starlette.requests import ClientDisconnect
+-from starlette.types import Receive, Scope, Send
++from starlette.types import Message, Receive, Scope, Send
++
++
++def _wrap_websocket_send(scope: Scope, send: Send) -> Send:
++    if scope.get("type") != "websocket":
++        return send
++
++    async def websocket_send(message: Message) -> None:
++        message["type"] = "websocket." + message["type"]
++        await send(message)
++
++    return websocket_send
+ 
+ 
+ class Response:
+@@ -257,9 +268,11 @@ class StreamingResponse(Response):
+         await send({"type": "http.response.body", "body": b"", "more_body": False})
+ 
+     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+-        spec_version = tuple(map(int, scope.get("asgi", {}).get("spec_version", "2.0").split(".")))
++        response_send = _wrap_websocket_send(scope, send)
+ 
+-        if spec_version >= (2, 4):
++        if scope.get("type") == "websocket":
++            await self.stream_response(response_send)
++        elif tuple(map(int, scope.get("asgi", {}).get("spec_version", "2.0").split("."))) >= (2, 4):
+             try:
+                 await self.stream_response(send)
+             except OSError:
+@@ -334,8 +347,9 @@ class FileResponse(Response):
+         self.headers.setdefault("etag", etag)
+ 
+     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+-        send_header_only: bool = scope["method"].upper() == "HEAD"
+-        send_pathsend: bool = "http.response.pathsend" in scope.get("extensions", {})
++        send_header_only = scope["type"] == "http" and scope["method"].upper() == "HEAD"
++        send_pathsend = scope["type"] == "http" and "http.response.pathsend" in scope.get("extensions", {})
++        response_send = _wrap_websocket_send(scope, send)
+ 
+         if self.stat_result is None:
+             try:
+@@ -355,7 +369,7 @@ class FileResponse(Response):
+         http_if_range = headers.get("if-range")
+ 
+         if http_range is None or (http_if_range is not None and not self._should_use_range(http_if_range)):
+-            await self._handle_simple(send, send_header_only, send_pathsend)
++            await self._handle_simple(response_send, send_header_only, send_pathsend)
+         else:
+             try:
+                 ranges = self._parse_range_header(http_range, stat_result.st_size)
+@@ -367,9 +381,9 @@ class FileResponse(Response):
+ 
+             if len(ranges) == 1:
+                 start, end = ranges[0]
+-                await self._handle_single_range(send, start, end, stat_result.st_size, send_header_only)
++                await self._handle_single_range(response_send, start, end, stat_result.st_size, send_header_only)
+             else:
+-                await self._handle_multiple_ranges(send, ranges, stat_result.st_size, send_header_only)
++                await self._handle_multiple_ranges(response_send, ranges, stat_result.st_size, send_header_only)
+ 
+         if self.background is not None:
+             await self.background()
+diff --git a/tests/test_responses.py b/tests/test_responses.py
+index 6216694..4d57b48 100644
+--- a/tests/test_responses.py
++++ b/tests/test_responses.py
+@@ -126,6 +126,43 @@ def test_streaming_response(test_client_factory: TestClientFactory) -> None:
+     assert filled_by_bg_task == "6, 7, 8, 9"
+ 
+ 
++@pytest.mark.anyio
++async def test_streaming_response_as_websocket_denial() -> None:
++    messages: list[Message] = []
++    background_call_count = 0
++
++    async def stream() -> AsyncIterator[str]:
++        yield "streamed"
++        yield " body"
++
++    async def receive() -> Message:
++        raise AssertionError("WebSocket denial responses must not listen for HTTP disconnects")
++
++    async def send(message: Message) -> None:
++        messages.append(message)
++
++    async def background() -> None:
++        nonlocal background_call_count
++        background_call_count += 1
++
++    response = StreamingResponse(
++        stream(),
++        status_code=403,
++        background=BackgroundTask(background),
++    )
++    await response({"type": "websocket", "headers": []}, receive, send)
++
++    assert [message["type"] for message in messages] == [
++        "websocket.http.response.start",
++        "websocket.http.response.body",
++        "websocket.http.response.body",
++        "websocket.http.response.body",
++    ]
++    assert b"".join(message.get("body", b"") for message in messages) == b"streamed body"
++    assert messages[-1] == {"type": "websocket.http.response.body", "body": b"", "more_body": False}
++    assert background_call_count == 1
++
++
+ def test_streaming_response_custom_iterator(
+     test_client_factory: TestClientFactory,
+ ) -> None:
+@@ -249,6 +286,53 @@ def test_file_response(tmp_path: Path, test_client_factory: TestClientFactory) -
+     assert filled_by_bg_task == "6, 7, 8, 9"
+ 
+ 
++@pytest.mark.anyio
++async def test_file_response_as_websocket_denial(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    path = tmp_path / "denied.txt"
++    path.write_bytes(b"file body")
++    messages: list[Message] = []
++
++    class AsyncFile:
++        def __init__(self, path: Path) -> None:
++            self.file = path.open("rb")
++
++        async def __aenter__(self) -> AsyncFile:
++            return self
++
++        async def __aexit__(self, *args: object) -> None:
++            self.file.close()
++
++        async def read(self, size: int) -> bytes:
++            return self.file.read(size)
++
++    async def open_file(path: str | Path, mode: str) -> AsyncFile:
++        assert mode == "rb"
++        return AsyncFile(Path(path))
++
++    monkeypatch.setattr(anyio, "open_file", open_file)
++
++    async def receive() -> Message:  # type: ignore[empty-body]
++        ...  # pragma: no cover
++
++    async def send(message: Message) -> None:
++        messages.append(message)
++
++    response = FileResponse(path, status_code=404, stat_result=path.stat())
++    await response(
++        {
++            "type": "websocket",
++            "headers": [],
++            "extensions": {"websocket.http.response": {}, "http.response.pathsend": {}},
++        },
++        receive,
++        send,
++    )
++
++    assert messages[0]["type"] == "websocket.http.response.start"
++    assert messages[0]["status"] == 404
++    assert messages[1] == {"type": "websocket.http.response.body", "body": b"file body", "more_body": False}
++
++
+ @pytest.mark.anyio
+ async def test_file_response_on_head_method(tmp_path: Path) -> None:
+     path = tmp_path / "xyz"
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,5 @@
++{
++  "tests/test_responses.py::test_streaming_response_as_websocket_denial[trio]": true,
++  "tests/middleware/test_session.py": true,
++  "tests/test_templates.py": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,7 @@
++[
++  "tests/test_responses.py::test_file_response_as_websocket_denial[asyncio]",
++  "tests/test_responses.py::test_streaming_response_as_websocket_denial[asyncio]",
++  "tests/test_responses.py::test_streaming_response_as_websocket_denial[trio]",
++  "tests/test_responses.py::test_streaming_response_on_client_disconnects[asyncio]",
++  "tests/test_responses.py::test_streaming_response_stops_if_receiving_http_disconnect[asyncio]"
++]
+diff --git a/starlette/__pycache__/__init__.cpython-311.pyc b/starlette/__pycache__/__init__.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/__init__.cpython-311.pyc added
+diff --git a/starlette/__pycache__/_exception_handler.cpython-311.pyc b/starlette/__pycache__/_exception_handler.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/_exception_handler.cpython-311.pyc added
+diff --git a/starlette/__pycache__/_utils.cpython-311.pyc b/starlette/__pycache__/_utils.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/_utils.cpython-311.pyc added
+diff --git a/starlette/__pycache__/applications.cpython-311.pyc b/starlette/__pycache__/applications.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/applications.cpython-311.pyc added
+diff --git a/starlette/__pycache__/authentication.cpython-311.pyc b/starlette/__pycache__/authentication.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/authentication.cpython-311.pyc added
+diff --git a/starlette/__pycache__/background.cpython-311.pyc b/starlette/__pycache__/background.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/background.cpython-311.pyc added
+diff --git a/starlette/__pycache__/concurrency.cpython-311.pyc b/starlette/__pycache__/concurrency.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/concurrency.cpython-311.pyc added
+diff --git a/starlette/__pycache__/config.cpython-311.pyc b/starlette/__pycache__/config.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/config.cpython-311.pyc added
+diff --git a/starlette/__pycache__/convertors.cpython-311.pyc b/starlette/__pycache__/convertors.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/convertors.cpython-311.pyc added
+diff --git a/starlette/__pycache__/datastructures.cpython-311.pyc b/starlette/__pycache__/datastructures.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/datastructures.cpython-311.pyc added
+diff --git a/starlette/__pycache__/endpoints.cpython-311.pyc b/starlette/__pycache__/endpoints.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/endpoints.cpython-311.pyc added
+diff --git a/starlette/__pycache__/exceptions.cpython-311.pyc b/starlette/__pycache__/exceptions.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/exceptions.cpython-311.pyc added
+diff --git a/starlette/__pycache__/formparsers.cpython-311.pyc b/starlette/__pycache__/formparsers.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/formparsers.cpython-311.pyc added
+diff --git a/starlette/__pycache__/requests.cpython-311.pyc b/starlette/__pycache__/requests.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/requests.cpython-311.pyc added
+diff --git a/starlette/__pycache__/responses.cpython-311.pyc b/starlette/__pycache__/responses.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/responses.cpython-311.pyc added
+diff --git a/starlette/__pycache__/routing.cpython-311.pyc b/starlette/__pycache__/routing.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/routing.cpython-311.pyc added
+diff --git a/starlette/__pycache__/schemas.cpython-311.pyc b/starlette/__pycache__/schemas.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/schemas.cpython-311.pyc added
+diff --git a/starlette/__pycache__/staticfiles.cpython-311.pyc b/starlette/__pycache__/staticfiles.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/staticfiles.cpython-311.pyc added
+diff --git a/starlette/__pycache__/status.cpython-311.pyc b/starlette/__pycache__/status.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/status.cpython-311.pyc added
+diff --git a/starlette/__pycache__/templating.cpython-311.pyc b/starlette/__pycache__/templating.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/templating.cpython-311.pyc added
+diff --git a/starlette/__pycache__/testclient.cpython-311.pyc b/starlette/__pycache__/testclient.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/testclient.cpython-311.pyc added
+diff --git a/starlette/__pycache__/types.cpython-311.pyc b/starlette/__pycache__/types.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/types.cpython-311.pyc added
+diff --git a/starlette/__pycache__/websockets.cpython-311.pyc b/starlette/__pycache__/websockets.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/websockets.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/__init__.cpython-311.pyc b/starlette/middleware/__pycache__/__init__.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/__init__.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/authentication.cpython-311.pyc b/starlette/middleware/__pycache__/authentication.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/authentication.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/base.cpython-311.pyc b/starlette/middleware/__pycache__/base.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/base.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/cors.cpython-311.pyc b/starlette/middleware/__pycache__/cors.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/cors.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/errors.cpython-311.pyc b/starlette/middleware/__pycache__/errors.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/errors.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/exceptions.cpython-311.pyc b/starlette/middleware/__pycache__/exceptions.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/exceptions.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/gzip.cpython-311.pyc b/starlette/middleware/__pycache__/gzip.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/gzip.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/httpsredirect.cpython-311.pyc b/starlette/middleware/__pycache__/httpsredirect.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/httpsredirect.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/sessions.cpython-311.pyc b/starlette/middleware/__pycache__/sessions.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/sessions.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/trustedhost.cpython-311.pyc b/starlette/middleware/__pycache__/trustedhost.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/trustedhost.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/wsgi.cpython-311.pyc b/starlette/middleware/__pycache__/wsgi.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/wsgi.cpython-311.pyc added
+diff --git a/tests/__pycache__/__init__.cpython-311.pyc b/tests/__pycache__/__init__.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/__init__.cpython-311.pyc added
+diff --git a/tests/__pycache__/conftest.cpython-311.pyc b/tests/__pycache__/conftest.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/conftest.cpython-311.pyc added
+diff --git a/tests/__pycache__/test__utils.cpython-311.pyc b/tests/__pycache__/test__utils.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test__utils.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_applications.cpython-311.pyc b/tests/__pycache__/test_applications.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_applications.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_authentication.cpython-311.pyc b/tests/__pycache__/test_authentication.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_authentication.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_background.cpython-311.pyc b/tests/__pycache__/test_background.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_background.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_concurrency.cpython-311.pyc b/tests/__pycache__/test_concurrency.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_concurrency.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_config.cpython-311.pyc b/tests/__pycache__/test_config.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_config.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_convertors.cpython-311.pyc b/tests/__pycache__/test_convertors.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_convertors.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_datastructures.cpython-311.pyc b/tests/__pycache__/test_datastructures.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_datastructures.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_endpoints.cpython-311.pyc b/tests/__pycache__/test_endpoints.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_endpoints.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_exceptions.cpython-311.pyc b/tests/__pycache__/test_exceptions.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_exceptions.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_formparsers.cpython-311.pyc b/tests/__pycache__/test_formparsers.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_formparsers.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_requests.cpython-311.pyc b/tests/__pycache__/test_requests.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_requests.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_responses.cpython-311.pyc b/tests/__pycache__/test_responses.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_responses.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_routing.cpython-311.pyc b/tests/__pycache__/test_routing.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_routing.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_schemas.cpython-311.pyc b/tests/__pycache__/test_schemas.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_schemas.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_staticfiles.cpython-311.pyc b/tests/__pycache__/test_staticfiles.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_staticfiles.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_status.cpython-311.pyc b/tests/__pycache__/test_status.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_status.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_templates.cpython-311.pyc b/tests/__pycache__/test_templates.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_templates.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_testclient.cpython-311.pyc b/tests/__pycache__/test_testclient.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_testclient.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_websockets.cpython-311.pyc b/tests/__pycache__/test_websockets.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_websockets.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/types.cpython-311.pyc b/tests/__pycache__/types.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/types.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/__init__.cpython-311.pyc b/tests/middleware/__pycache__/__init__.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/__init__.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_base.cpython-311.pyc b/tests/middleware/__pycache__/test_base.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_base.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_cors.cpython-311.pyc b/tests/middleware/__pycache__/test_cors.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_cors.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_errors.cpython-311.pyc b/tests/middleware/__pycache__/test_errors.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_errors.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_gzip.cpython-311.pyc b/tests/middleware/__pycache__/test_gzip.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_gzip.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_https_redirect.cpython-311.pyc b/tests/middleware/__pycache__/test_https_redirect.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_https_redirect.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_middleware.cpython-311.pyc b/tests/middleware/__pycache__/test_middleware.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_middleware.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_session.cpython-311.pyc b/tests/middleware/__pycache__/test_session.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_session.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_trusted_host.cpython-311.pyc b/tests/middleware/__pycache__/test_trusted_host.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_trusted_host.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_wsgi.cpython-311.pyc b/tests/middleware/__pycache__/test_wsgi.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_wsgi.cpython-311.pyc
+@@ -0,0 +1,0 @@

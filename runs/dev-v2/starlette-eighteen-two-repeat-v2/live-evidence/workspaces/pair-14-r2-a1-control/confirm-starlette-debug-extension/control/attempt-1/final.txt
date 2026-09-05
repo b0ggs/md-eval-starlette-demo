@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated `TestClient` to:
+
+- Preserve complete debug mappings in `response.extensions["http.response.debug"]`.
+- Retain `response.template` and `response.context` compatibility.
+- Handle debug mappings without template/context keys.
+
+Added regression tests. Direct transport assertions, syntax compilation, and diff checks passed. Pytest was blocked by a baseline AnyIO portal hang; `ruff` and `mypy` are unavailable in the environment.

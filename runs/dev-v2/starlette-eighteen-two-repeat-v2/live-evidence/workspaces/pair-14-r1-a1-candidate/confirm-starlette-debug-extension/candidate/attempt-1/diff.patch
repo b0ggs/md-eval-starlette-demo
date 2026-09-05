@@ -1,0 +1,87 @@
+diff --git a/starlette/testclient.py b/starlette/testclient.py
+index 63d8790..eeeec50 100644
+--- a/starlette/testclient.py
++++ b/starlette/testclient.py
+@@ -294,8 +294,7 @@ class _TestClientTransport(httpx.BaseTransport):
+         response_started = False
+         response_complete: anyio.Event
+         raw_kwargs: dict[str, Any] = {"stream": io.BytesIO()}
+-        template = None
+-        context = None
++        response_debug: Mapping[str, Any] | None = None
+ 
+         async def receive() -> Message:
+             nonlocal request_complete
+@@ -326,7 +325,7 @@ class _TestClientTransport(httpx.BaseTransport):
+             return {"type": "http.request", "body": body_bytes}
+ 
+         async def send(message: Message) -> None:
+-            nonlocal raw_kwargs, response_started, template, context
++            nonlocal raw_kwargs, response_started, response_debug
+ 
+             if message["type"] == "http.response.start":
+                 assert not response_started, 'Received multiple "http.response.start" messages.'
+@@ -344,8 +343,7 @@ class _TestClientTransport(httpx.BaseTransport):
+                     raw_kwargs["stream"].seek(0)
+                     response_complete.set()
+             elif message["type"] == "http.response.debug":
+-                template = message["info"]["template"]
+-                context = message["info"]["context"]
++                response_debug = message["info"]
+ 
+         try:
+             with self.portal_factory() as portal:
+@@ -367,9 +365,11 @@ class _TestClientTransport(httpx.BaseTransport):
+         raw_kwargs["stream"] = httpx.ByteStream(raw_kwargs["stream"].read())
+ 
+         response = httpx.Response(**raw_kwargs, request=request)
+-        if template is not None:
+-            response.template = template  # type: ignore[attr-defined]
+-            response.context = context  # type: ignore[attr-defined]
++        if response_debug is not None:
++            response.extensions["http.response.debug"] = response_debug
++            if "template" in response_debug and "context" in response_debug:
++                response.template = response_debug["template"]  # type: ignore[attr-defined]
++                response.context = response_debug["context"]  # type: ignore[attr-defined]
+         return response
+ 
+ 
+diff --git a/tests/test_testclient.py b/tests/test_testclient.py
+index b5a347c..aa072a6 100644
+--- a/tests/test_testclient.py
++++ b/tests/test_testclient.py
+@@ -230,6 +230,34 @@ def test_testclient_asgi3(test_client_factory: TestClientFactory) -> None:
+     assert response.text == "Hello, world!"
+ 
+ 
++def test_testclient_response_debug(test_client_factory: TestClientFactory) -> None:
++    template = object()
++    context = {"name": "World"}
++    debug_messages = [
++        {"traceback": ["frame 1", "frame 2"]},
++        {"template": template, "context": context, "extra": "debug value"},
++    ]
++
++    async def app(scope: Scope, receive: Receive, send: Send) -> None:
++        info = debug_messages.pop(0)
++        await send({"type": "http.response.debug", "info": info})
++        await Response("Hello, world!")(scope, receive, send)
++
++    client = test_client_factory(app)
++
++    response = client.get("/")
++    assert response.extensions["http.response.debug"] == {"traceback": ["frame 1", "frame 2"]}
++
++    response = client.get("/")
++    assert response.extensions["http.response.debug"] == {
++        "template": template,
++        "context": context,
++        "extra": "debug value",
++    }
++    assert response.template is template  # type: ignore[attr-defined]
++    assert response.context is context  # type: ignore[attr-defined]
++
++
+ def test_websocket_blocking_receive(test_client_factory: TestClientFactory) -> None:
+     def app(scope: Scope) -> ASGIInstance:
+         async def respond(websocket: WebSocket) -> None:

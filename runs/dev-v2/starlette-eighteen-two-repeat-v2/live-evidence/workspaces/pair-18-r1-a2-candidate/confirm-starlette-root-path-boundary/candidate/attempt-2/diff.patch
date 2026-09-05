@@ -1,0 +1,58 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 90bd346..752c875 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -2,7 +2,6 @@ from __future__ import annotations
+ 
+ import asyncio
+ import functools
+-import re
+ import sys
+ import typing
+ from contextlib import contextmanager
+@@ -85,5 +84,8 @@ def collapse_excgroups() -> typing.Generator[None, None, None]:
+ 
+ def get_route_path(scope: Scope) -> str:
+     root_path = scope.get("root_path", "")
+-    route_path = re.sub(r"^" + root_path, "", scope["path"])
++    route_path = scope["path"]
++    if root_path and route_path.startswith(root_path):
++        if route_path == root_path or route_path[len(root_path)] == "/":
++            return route_path[len(root_path) :]
+     return route_path
+diff --git a/tests/test__utils.py b/tests/test__utils.py
+index 2ecf474..09b9a43 100644
+--- a/tests/test__utils.py
++++ b/tests/test__utils.py
+@@ -1,7 +1,13 @@
+ import functools
+ from typing import Any
+ 
+-from starlette._utils import is_async_callable
++from starlette._utils import get_route_path, is_async_callable
++
++
++def test_get_route_path_respects_root_path_segment_boundaries() -> None:
++    assert get_route_path({"path": "/root/path", "root_path": "/root"}) == "/path"
++    assert get_route_path({"path": "/root", "root_path": "/root"}) == ""
++    assert get_route_path({"path": "/root-queue/path", "root_path": "/root"}) == "/root-queue/path"
+ 
+ 
+ def test_async_func() -> None:
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index 9fa44de..6c3bea7 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -1266,3 +1266,12 @@ def test_paths_with_root_path(test_client_factory: TestClientFactory) -> None:
+         "path": "/root/sub/path",
+         "root_path": "/root/sub",
+     }
++
++
++def test_route_with_root_path_text_prefix(test_client_factory: TestClientFactory) -> None:
++    app = Starlette(routes=[Route("/root-queue/path", homepage)])
++    client = test_client_factory(app, root_path="/root")
++
++    response = client.get("/root-queue/path")
++
++    assert response.status_code == 200

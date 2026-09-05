@@ -1,0 +1,30 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/responses.py",
+      "text": "def _wrap_websocket_denial_send(",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "A `StreamingResponse` used as a WebSocket denial response must emit the complete body through valid WebSocket denial events, run its background task exactly once, and preserve its established HTTP behavior."
+    },
+    "target_paths": [
+      "starlette/responses.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/responses.py",
+      "text": "scope_type = scope[\"type\"]",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "A `FileResponse` used as a WebSocket denial response must not assume HTTP-only scope fields or extensions, and must deliver the file body and status through valid WebSocket denial events."
+    },
+    "target_paths": [
+      "starlette/responses.py"
+    ]
+  }
+}

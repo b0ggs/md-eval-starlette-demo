@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added public `WebSocketDisconnected(RuntimeError)` and raised it for disconnected low-level send/receive operations and receive helpers, preserving existing messages and other exception behavior.
+
+Focused state-machine verification passed. Pytest integration hung and was stopped; Ruff was unavailable.

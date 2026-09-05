@@ -1,0 +1,22 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_routing.py::test_mount_urls",
+    "tests/test_routing.py::test_reverse_mount_urls",
+    "tests/test_routing.py::test_url_for_with_double_mount"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirement_probes": {
+    "R2": "from starlette.responses import PlainTextResponse\nfrom starlette.routing import Match, Route\nroute = Route('/root-queue/path', PlainTextResponse('ok'))\nscope = {'type': 'http', 'path': '/root-queue/path', 'root_path': '/root', 'method': 'GET'}\nassert route.matches(scope)[0] is Match.FULL"
+  },
+  "requirements": {
+    "R1": [
+      "tests/test__utils.py::test_get_route_path"
+    ],
+    "R2": [
+      "tests/test_routing.py::test_paths_with_root_path"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-root-path-boundary"
+}

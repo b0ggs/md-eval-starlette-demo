@@ -1,0 +1,7 @@
+IMPLEMENTED
+
+TASK_COMPLETE
+
+Updated [cors.py](/workspace/starlette/middleware/cors.py) to echo each request’s origin whenever wildcard origins and credentials are enabled, while preserving Cookie-based behavior. `Vary: Origin` now appends to existing values.
+
+Expanded [test_cors.py](/workspace/tests/middleware/test_cors.py) coverage. `git diff --check` passed. Targeted pytest collected successfully but timed out on the first request; installed pytest is 9.0.2 while the project pins 8.4.1.

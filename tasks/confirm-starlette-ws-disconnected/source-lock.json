@@ -1,0 +1,21 @@
+{
+  "base_sha": "d9ed5b0f98fdf081fb138473129b72eb035153a3",
+  "fix_sha": "e7a0b007b601f5e4ff98424333fd2fb794a3f1e6",
+  "private_test_sha256": {
+    "tests/test_websockets.py": "8e17f653e9ae937802c91ddccef894c34ce8f96a86734e00b2d7c114932d1874"
+  },
+  "public_file_count": 77,
+  "public_inventory_sha256": "edbd7d2429cc9df0806c03380df7bfb77844262c9775359cb89e25ce8debf068",
+  "public_solution_sha256": {
+    "starlette/websockets.py": "9bae16d45e0974bc3eed3446547a92aa0ade6a69476d525239e210d7b11d1f28"
+  },
+  "reference_file_count": 77,
+  "reference_inventory_sha256": "f843a629d01badf5efb39e71a64851fa3f3609490f71f618c9be3a20cc944f25",
+  "reference_solution_sha256": {
+    "starlette/websockets.py": "99f948f4b53095ff77feeba323cc3eb58fa7a12fb375111bcda52678e5433fd7"
+  },
+  "schema_version": "starlette-task-source-lock-v1",
+  "solution_paths": [
+    "starlette/websockets.py"
+  ]
+}

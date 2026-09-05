@@ -1,0 +1,12 @@
+[project]
+name = "md-eval-starlette-demo"
+version = "1.0.0"
+description = "Offline-reproducible 18-task Starlette instruction-file experiment"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "b0ggs" }]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/b0ggs/md-eval-starlette-demo"

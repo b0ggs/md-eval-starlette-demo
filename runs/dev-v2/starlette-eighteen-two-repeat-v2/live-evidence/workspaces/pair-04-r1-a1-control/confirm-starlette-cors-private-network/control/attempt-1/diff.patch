@@ -1,0 +1,114 @@
+diff --git a/docs/middleware.md b/docs/middleware.md
+index 68bcc59..0156314 100644
+--- a/docs/middleware.md
++++ b/docs/middleware.md
+@@ -76,6 +76,7 @@ The following arguments are supported:
+ * `allow_methods` - A list of HTTP methods that should be allowed for cross-origin requests. Defaults to `['GET']`. You can use `['*']` to allow all standard methods.
+ * `allow_headers` - A list of HTTP request headers that should be supported for cross-origin requests. Defaults to `[]`. You can use `['*']` to allow all headers. The `Accept`, `Accept-Language`, `Content-Language` and `Content-Type` headers are always allowed for CORS requests.
+ * `allow_credentials` - Indicate that cookies should be supported for cross-origin requests. Defaults to `False`. Also, `allow_origins`, `allow_methods` and `allow_headers` cannot be set to `['*']` for credentials to be allowed, all of them must be explicitly specified.
++* `allow_private_network` - Indicate that private-network access should be allowed for cross-origin requests. Defaults to `False`.
+ * `expose_headers` - Indicate any response headers that should be made accessible to the browser. Defaults to `[]`.
+ * `max_age` - Sets a maximum time in seconds for browsers to cache CORS responses. Defaults to `600`.
+ 
+diff --git a/starlette/middleware/cors.py b/starlette/middleware/cors.py
+index ffd8aef..38aab12 100644
+--- a/starlette/middleware/cors.py
++++ b/starlette/middleware/cors.py
+@@ -23,6 +23,7 @@ class CORSMiddleware:
+         allow_origin_regex: str | None = None,
+         expose_headers: Sequence[str] = (),
+         max_age: int = 600,
++        allow_private_network: bool = False,
+     ) -> None:
+         if "*" in allow_methods:
+             allow_methods = ALL_METHODS
+@@ -69,6 +70,7 @@ class CORSMiddleware:
+         self.allow_all_headers = allow_all_headers
+         self.preflight_explicit_allow_origin = preflight_explicit_allow_origin
+         self.allow_origin_regex = compiled_allow_origin_regex
++        self.allow_private_network = allow_private_network
+         self.simple_headers = simple_headers
+         self.preflight_headers = preflight_headers
+ 
+@@ -105,6 +107,7 @@ class CORSMiddleware:
+         requested_origin = request_headers["origin"]
+         requested_method = request_headers["access-control-request-method"]
+         requested_headers = request_headers.get("access-control-request-headers")
++        requested_private_network = request_headers.get("access-control-request-private-network")
+ 
+         headers = dict(self.preflight_headers)
+         failures = []
+@@ -130,6 +133,12 @@ class CORSMiddleware:
+                     failures.append("headers")
+                     break
+ 
++        if requested_private_network == "true":
++            if self.allow_private_network:
++                headers["Access-Control-Allow-Private-Network"] = "true"
++            else:
++                failures.append("private-network")
++
+         # We don't strictly need to use 400 responses here, since its up to
+         # the browser to enforce the CORS policy, but its more informative
+         # if we do.
+diff --git a/tests/middleware/test_cors.py b/tests/middleware/test_cors.py
+index 45bab3e..085424d 100644
+--- a/tests/middleware/test_cors.py
++++ b/tests/middleware/test_cors.py
+@@ -209,6 +209,56 @@ def test_cors_disallowed_preflight(
+     assert response.text == "Disallowed CORS headers"
+ 
+ 
++def test_cors_allows_private_network_preflight_when_enabled(
++    test_client_factory: TestClientFactory,
++) -> None:
++    app = Starlette(
++        middleware=[
++            Middleware(
++                CORSMiddleware,
++                allow_origins=["https://example.org"],
++                allow_private_network=True,
++            )
++        ],
++    )
++    client = test_client_factory(app)
++
++    response = client.options(
++        "/",
++        headers={
++            "Origin": "https://example.org",
++            "Access-Control-Request-Method": "GET",
++            "Access-Control-Request-Private-Network": "true",
++        },
++    )
++
++    assert response.status_code == 200
++    assert response.text == "OK"
++    assert response.headers["access-control-allow-private-network"] == "true"
++
++
++def test_cors_denies_private_network_preflight_by_default(
++    test_client_factory: TestClientFactory,
++) -> None:
++    app = Starlette(
++        middleware=[Middleware(CORSMiddleware, allow_origins=["https://example.org"])],
++    )
++    client = test_client_factory(app)
++
++    response = client.options(
++        "/",
++        headers={
++            "Origin": "https://example.org",
++            "Access-Control-Request-Method": "GET",
++            "Access-Control-Request-Private-Network": "true",
++        },
++    )
++
++    assert response.status_code == 400
++    assert response.text == "Disallowed CORS private-network"
++    assert "access-control-allow-private-network" not in response.headers
++
++
+ def test_preflight_allows_request_origin_if_origins_wildcard_and_credentials_allowed(
+     test_client_factory: TestClientFactory,
+ ) -> None:

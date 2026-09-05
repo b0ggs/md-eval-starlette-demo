@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to strip `root_path` only at a complete segment boundary or exact match. Added unit and routing regressions for `/root-queue/path`.
+
+`git diff --check` passed. The unit regression passed; the TestClient routing test hit the repository’s 30-second execution bound.

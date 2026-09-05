@@ -1,0 +1,32 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/testclient.py",
+      "text": "response.extensions[\"http.response.debug\"] = debug_info",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "When an application sends an `http.response.debug` event, `TestClient` must expose the complete `info` mapping at `response.extensions[\"http.response.debug\"]` without requiring template or context keys."
+    },
+    "target_paths": [
+      "docs/testclient.md",
+      "starlette/testclient.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/testclient.py",
+      "text": "if \"template\" in debug_info:",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "When debug information includes template and context values, `TestClient` must preserve them as `response.template` and `response.context` while also retaining the complete mapping in `response.extensions[\"http.response.debug\"]`."
+    },
+    "target_paths": [
+      "docs/testclient.md",
+      "starlette/testclient.py"
+    ]
+  }
+}

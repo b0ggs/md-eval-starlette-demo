@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated gzip middleware so compressible responses add `Vary: Accept-Encoding` on identity requests without changing body encoding, content length, pre-encoded responses, or streaming completion.
+
+Added focused regression coverage. `git diff --check` passed; pytest hung without output on both the initial run and timed retry, so runtime verification remains incomplete.

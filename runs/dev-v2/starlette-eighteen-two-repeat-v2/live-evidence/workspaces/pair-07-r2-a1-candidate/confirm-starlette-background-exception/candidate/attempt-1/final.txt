@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to propagate background-task exceptions after its task group completes. Added a focused regression test.
+
+Validation:
+
+- New propagation test passed on asyncio.
+- Adjacent background-task ordering regression passed.
+- Trio could not initialize due sandbox socket restrictions.

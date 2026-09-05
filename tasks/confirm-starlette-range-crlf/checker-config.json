@@ -1,0 +1,21 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_responses.py::test_text_response",
+    "tests/test_responses.py::test_file_response",
+    "tests/test_responses.py::test_file_response_on_head_method"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirements": {
+    "R1": [
+      "tests/test_responses.py::test_file_response_insert_ranges"
+    ],
+    "R2": [
+      "tests/test_responses.py::test_file_response_range_multi",
+      "tests/test_responses.py::test_file_response_range_multi_head",
+      "tests/test_responses.py::test_file_response_multi_small_chunk_size"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-range-crlf"
+}

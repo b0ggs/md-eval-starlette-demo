@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `UploadFile.write()` to anticipate spooled-file rollover and use the thread pool while preserving in-memory writes below the limit. Added a regression test.
+
+Validation: focused test passed; compilation and diff checks passed. `ruff` and `mypy` were unavailable.

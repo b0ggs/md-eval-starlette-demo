@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to respect complete path-segment boundaries and preserve `/root-queue/path` with root path `/root`. Added utility and routing regression tests.
+
+Verification: 8 focused tests passed; `git diff --check` passed. `ruff` and `mypy` were unavailable.

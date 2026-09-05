@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` now remains directly awaitable and supports `async with`, closing all parsed uploads on normal and exceptional exits. Added regression coverage.
+
+Direct multipart checks and compilation passed. The available pytest runner timed out; `ruff` and `mypy` were unavailable.

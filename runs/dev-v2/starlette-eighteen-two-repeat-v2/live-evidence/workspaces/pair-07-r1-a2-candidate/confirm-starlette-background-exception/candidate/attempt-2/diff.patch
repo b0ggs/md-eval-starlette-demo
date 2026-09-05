@@ -1,0 +1,125 @@
+diff --git a/starlette/middleware/base.py b/starlette/middleware/base.py
+index f146984..2a59337 100644
+--- a/starlette/middleware/base.py
++++ b/starlette/middleware/base.py
+@@ -103,10 +103,9 @@ class BaseHTTPMiddleware:
+         request = _CachedRequest(scope, receive)
+         wrapped_receive = request.wrapped_receive
+         response_sent = anyio.Event()
++        app_exc: Exception | None = None
+ 
+         async def call_next(request: Request) -> Response:
+-            app_exc: Exception | None = None
+-
+             async def receive_or_disconnect() -> Message:
+                 if response_sent.is_set():
+                     return {"type": "http.disconnect"}
+@@ -165,9 +164,6 @@ class BaseHTTPMiddleware:
+                     if not message.get("more_body", False):
+                         break
+ 
+-                if app_exc is not None:
+-                    raise app_exc
+-
+             response = _StreamingResponse(status_code=message["status"], content=body_stream(), info=info)
+             response.raw_headers = message["headers"]
+             return response
+@@ -181,6 +177,9 @@ class BaseHTTPMiddleware:
+                 response_sent.set()
+                 recv_stream.close()
+ 
++        if app_exc is not None:
++            raise app_exc
++
+     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+         raise NotImplementedError()  # pragma: no cover
+ 
+diff --git a/tests/middleware/test_base.py b/tests/middleware/test_base.py
+index 7232cfd..263f913 100644
+--- a/tests/middleware/test_base.py
++++ b/tests/middleware/test_base.py
+@@ -105,6 +105,37 @@ def test_custom_middleware(test_client_factory: TestClientFactory) -> None:
+         assert text == "Hello, world!"
+ 
+ 
++@pytest.mark.anyio
++async def test_background_task_exception_propagates() -> None:
++    async def raise_exception() -> None:
++        raise RuntimeError("background task failed")
++
++    async def endpoint(request: Request) -> Response:
++        return Response(background=BackgroundTask(raise_exception))
++
++    async def passthrough(request: Request, call_next: RequestResponseEndpoint) -> Response:
++        return await call_next(request)
++
++    app = Starlette(
++        routes=[Route("/", endpoint)],
++        middleware=[Middleware(BaseHTTPMiddleware, dispatch=passthrough)],
++    )
++
++    scope = {"type": "http", "method": "GET", "path": "/"}
++    sent: list[Message] = []
++
++    async def receive() -> Message:
++        return {"type": "http.request", "body": b""}
++
++    async def send(message: Message) -> None:
++        sent.append(message)
++
++    with pytest.raises(RuntimeError, match="background task failed"):
++        await app(scope, receive, send)
++
++    assert sent[-1] == {"type": "http.response.body", "body": b"", "more_body": False}
++
++
+ def test_state_data_across_multiple_middlewares(
+     test_client_factory: TestClientFactory,
+ ) -> None:
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,3 @@
++{
++  "tests/middleware/test_base.py::test_background_task_exception_propagates[trio]": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,5 @@
++[
++  "tests/middleware/test_base.py::test_background_task_exception_propagates[asyncio]",
++  "tests/middleware/test_base.py::test_background_task_exception_propagates[trio]",
++  "tests/middleware/test_base.py::test_do_not_block_on_background_tasks[asyncio]"
++]

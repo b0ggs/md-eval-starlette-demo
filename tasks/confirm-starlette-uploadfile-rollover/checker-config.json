@@ -1,0 +1,16 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_formparsers.py::test_multipart_request_data",
+    "tests/test_formparsers.py::test_multipart_request_files",
+    "tests/test_formparsers.py::test_urlencoded_request_data"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirements": {
+    "R1": [
+      "tests/test_formparsers.py::test_multipart_request_large_file_rollover_in_background_thread"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-uploadfile-rollover"
+}

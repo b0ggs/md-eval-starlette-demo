@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`State` now implements `MutableMapping`, supports keyed operations, iteration, and length, while preserving attribute access and shared typed mapping values.
+
+Focused regression: passed. Adjacent lifespan test timed out due the test environment; `ruff` and `mypy` were unavailable, so the full suite was not run.

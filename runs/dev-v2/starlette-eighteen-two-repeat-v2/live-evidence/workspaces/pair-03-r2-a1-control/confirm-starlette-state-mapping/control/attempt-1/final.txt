@@ -1,0 +1,6 @@
+Implemented the issue contract.
+
+- `State` now implements `MutableMapping` with keyed get/set/delete, iteration, and length.
+- Custom mutable backing mappings remain intact and shared with `Request`/`HTTPConnection`.
+- Existing attribute access remains supported.
+- Added regression tests; focused tests pass (`2 passed`). Full request suite stalled in unrelated existing `TestClient` setup.

@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated multipart byte-range responses to:
+
+- Use CRLF framing and a standards-compliant terminal boundary.
+- Calculate `Content-Length` from exact emitted bytes.
+- Cover GET, HEAD, reordered ranges, MIME parsing, and small chunks.
+
+`git diff --check` passed. Focused pytest runs timed out without output; `ruff` was unavailable.

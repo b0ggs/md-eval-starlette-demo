@@ -1,0 +1,16 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/datastructures.py",
+      "text": "def _will_roll(self, size_to_add: int) -> bool:",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "UploadFile.write() must use the thread pool when the pending write will roll a spooled temporary file to disk, while retaining the in-memory fast path for writes that remain below the spool limit."
+    },
+    "target_paths": [
+      "starlette/datastructures.py"
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated HTTP middleware to preserve application exception causes/contexts without exposing internal stream exceptions. Added regression tests for explicit and implicit chaining.
+
+Verification: focused asyncio tests passed; exception-chain and compile checks passed. Trio is unavailable due sandbox socket restrictions; Ruff/Mypy are not installed.

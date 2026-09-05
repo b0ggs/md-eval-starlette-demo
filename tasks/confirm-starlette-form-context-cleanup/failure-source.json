@@ -1,0 +1,23 @@
+{
+  "base_sha": "e4bd5981540ee0003deaae69d7f4881f11714b96",
+  "checker_command": "python3 check.py WORKSPACE",
+  "extraction_note": "starlette-confirmation-source-v1: outcome-independent reconstruction of the distinct merged upstream Request.form context-manager change on the suite's pinned Starlette source snapshot; public and reference contain the complete pinned package and test tree, reference overlays only the production fix paths, and private contains only task-specific behavioral tests; no model or prior task outcome informed selection",
+  "fix_sha": "c568b55dff8be94b9c917e186e512ab53d7310e1",
+  "fix_test_patch_sha256": "af7ae6b9563a4f997da05a19469c1dffc0f73bb37bee12b2d7c5d1ebcfd05c17",
+  "issue_closed_at": "2023-02-06T07:14:00+00:00",
+  "issue_url": "https://github.com/Kludex/starlette/pull/1903",
+  "license_paths": [
+    {
+      "path": "public/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    },
+    {
+      "path": "reference/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    }
+  ],
+  "removed_instruction_paths": [],
+  "solution_patch_sha256": "23e23f9e680d6a0af7d1c95553706e7c8b10521610aa85b9db8296e7fd17e5d8",
+  "source_url": "https://github.com/Kludex/starlette",
+  "spdx_id": "BSD-3-Clause"
+}

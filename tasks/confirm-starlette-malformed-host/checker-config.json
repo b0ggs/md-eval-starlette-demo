@@ -1,0 +1,29 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path",
+    "tests/test_routing.py::test_host_routing",
+    "tests/middleware/test_trusted_host.py::test_trusted_host_middleware"
+  ],
+  "requirement_timeout_seconds": 45,
+  "requirements": {
+    "R1": [
+      "tests/test_datastructures.py::test_url_from_scope",
+      "tests/test_datastructures.py::test_url_from_scope_with_invalid_host",
+      "tests/test_datastructures.py::test_url_from_scope_with_ipv6_server",
+      "tests/test_datastructures.py::test_url_from_scope_with_ipvfuture"
+    ],
+    "R2": [
+      "tests/test_routing.py::test_host_routing_rejects_invalid_hosts",
+      "tests/test_routing.py::test_host_routing_ignores_port",
+      "tests/test_routing.py::test_host_routing_ip_literals",
+      "tests/middleware/test_trusted_host.py::test_trusted_host_middleware_ipv6"
+    ],
+    "R3": [
+      "tests/middleware/test_https_redirect.py::test_https_redirect_middleware",
+      "tests/middleware/test_https_redirect.py::test_https_redirect_middleware_without_server"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-malformed-host"
+}

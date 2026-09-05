@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated static-file ETag parsing to recognize horizontal tabs as HTTP optional whitespace. Added regression coverage for weak ETags in first, middle, and last list positions, verifying 304 responses have empty bodies.
+
+Direct response checks, compilation, and diff validation passed. The pytest client fixture hung on its baseline request in this environment.

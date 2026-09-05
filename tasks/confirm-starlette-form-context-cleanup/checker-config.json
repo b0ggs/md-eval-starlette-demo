@@ -1,0 +1,17 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_requests.py::test_request_form_urlencoded",
+    "tests/test_formparsers.py::test_multipart_request_files",
+    "tests/test_datastructures.py::test_formdata"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirements": {
+    "R1": [
+      "tests/test_request_form_context_cleanup.py::test_form_context_closes_upload_when_body_raises",
+      "tests/test_request_form_context_cleanup.py::test_form_remains_directly_awaitable"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-form-context-cleanup"
+}

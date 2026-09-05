@@ -1,0 +1,49 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/_utils.py",
+      "text": "class ParsedHost:",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "When a URL is built from an ASGI scope, use a Host header only when its authority syntax is valid and its optional port is decimal and in the range 0 through 65535; otherwise fall back to the scope server and render IPv6 server addresses in brackets. Preserve valid zero-padded ports and lowercase IPvFuture literals."
+    },
+    "target_paths": [
+      "starlette/_utils.py",
+      "starlette/datastructures.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/routing.py",
+      "text": "parsed_host = parse_host_header(headers.get(\"host\"))",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Host routes and TrustedHostMiddleware must reject malformed authorities and invalid IP literals, accept valid bracketed IPv6 and lowercase IPvFuture literals, and ignore a syntactically numeric port while matching, including zero-padded and out-of-range numeric ports."
+    },
+    "target_paths": [
+      "starlette/_utils.py",
+      "starlette/middleware/trustedhost.py",
+      "starlette/routing.py"
+    ]
+  },
+  "R3": {
+    "omission_probe": {
+      "path": "starlette/middleware/httpsredirect.py",
+      "text": "Invalid host header",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "HTTPSRedirectMiddleware must fall back to a valid scope server when the Host header is malformed, bracket an IPv6 fallback authority, and strip default HTTP or HTTPS ports even when they are zero-padded; when neither a valid Host header nor a scope server exists, it must respond with status 400 and the body Invalid host header."
+    },
+    "target_paths": [
+      "starlette/_utils.py",
+      "starlette/datastructures.py",
+      "starlette/middleware/httpsredirect.py"
+    ]
+  }
+}

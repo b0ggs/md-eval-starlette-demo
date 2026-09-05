@@ -1,0 +1,30 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/middleware/cors.py",
+      "text": "self.allow_credentials = allow_credentials",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "When all origins and credentials are allowed, each simple CORS response must echo that request's Origin rather than *, whether or not a Cookie header is present."
+    },
+    "target_paths": [
+      "starlette/middleware/cors.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/middleware/cors.py",
+      "text": "if self.allow_all_origins and self.allow_credentials:",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Credentialed wildcard-origin responses must preserve existing Vary values and append Origin because their allow-origin value depends on the request."
+    },
+    "target_paths": [
+      "starlette/middleware/cors.py"
+    ]
+  }
+}

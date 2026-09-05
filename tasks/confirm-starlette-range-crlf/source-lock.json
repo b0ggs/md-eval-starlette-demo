@@ -1,0 +1,21 @@
+{
+  "base_sha": "90b805fda70db2316d79aa577f4c3eb670f9a8a1",
+  "fix_sha": "9c74ef4c7cb1b79909aebf38be0e155064c27601",
+  "private_test_sha256": {
+    "tests/test_responses.py": "7705cd78aadba9ff22401b8c42b12176419f1a9a3ef5437d4d56655c6387d5f4"
+  },
+  "public_file_count": 73,
+  "public_inventory_sha256": "67625b48d42130448cca7501c10eab846220ba6b97365ec7a759462fd19baab0",
+  "public_solution_sha256": {
+    "starlette/responses.py": "2f0141e9cf604c3714126168ba5b3db16fbd78b21df7f7a502548dc6b5a70130"
+  },
+  "reference_file_count": 73,
+  "reference_inventory_sha256": "52aa3f18ab6b8d474cf2a5f0715f9cdb64f2738af3c768ac10e86a76d06e2c4f",
+  "reference_solution_sha256": {
+    "starlette/responses.py": "9a8f902f57ad2bcbcb3ed5599355fab393df9dc639d2f3a6a28191d9dbdc3b2b"
+  },
+  "schema_version": "starlette-task-source-lock-v1",
+  "solution_paths": [
+    "starlette/responses.py"
+  ]
+}

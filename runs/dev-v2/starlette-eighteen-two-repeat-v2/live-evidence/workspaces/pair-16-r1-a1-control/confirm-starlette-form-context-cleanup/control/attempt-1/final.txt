@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` remains directly awaitable and now supports `async with`, closing every parsed upload on normal and exceptional exits. Added regression coverage for multiple files.
+
+Verification: focused asyncio tests passed; direct-await check passed. Trio could not run due sandbox socket restrictions.

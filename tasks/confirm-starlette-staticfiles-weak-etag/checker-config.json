@@ -1,0 +1,17 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_staticfiles.py::test_staticfiles_never_read_file_for_head_method",
+    "tests/test_staticfiles.py::test_staticfiles_200_with_etag_mismatch",
+    "tests/test_staticfiles.py::test_staticfiles_200_with_etag_mismatch_and_timestamp_match",
+    "tests/test_staticfiles.py::test_staticfiles_304_with_last_modified_compare_last_req"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirements": {
+    "R1": [
+      "tests/test_staticfiles.py::test_staticfiles_304_with_etag_match"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-staticfiles-weak-etag"
+}

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added identity response handling so compressible responses include `Vary: Accept-Encoding` without altering their bodies. Small, pre-encoded, and excluded responses remain unchanged; streaming completion is preserved.
+
+Added gzip middleware coverage. Direct ASGI edge-case checks and test collection passed. Full TestClient execution hangs in the baseline environment.

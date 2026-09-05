@@ -1,0 +1,16 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/responses.py",
+      "text": "max(file_size - int(end_str), 0)",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "FileResponse must clamp a suffix byte range longer than the selected file to byte zero and return the complete representation as a 206 response with accurate Content-Range and Content-Length headers."
+    },
+    "target_paths": [
+      "starlette/responses.py"
+    ]
+  }
+}

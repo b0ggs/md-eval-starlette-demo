@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix ranges to byte zero, preserving a `206` response with accurate `Content-Range`, `Content-Length`, and full file content. Added regression coverage.
+
+Parser and compilation checks passed. Pytest was attempted but timed out on the pre-existing suffix test due to the local test-client environment.

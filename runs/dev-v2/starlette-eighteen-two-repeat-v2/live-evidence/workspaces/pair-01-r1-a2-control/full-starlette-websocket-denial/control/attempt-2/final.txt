@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added valid WebSocket denial events for streaming and file responses, preserved HTTP behavior, and added regression tests.
+
+Verification: 4 targeted pytest tests passed; compilation and diff checks passed.

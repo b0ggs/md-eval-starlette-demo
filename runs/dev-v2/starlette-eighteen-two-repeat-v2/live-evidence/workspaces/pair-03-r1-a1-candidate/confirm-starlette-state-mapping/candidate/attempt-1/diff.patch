@@ -1,0 +1,149 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index e621900..5011c71 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -663,19 +663,41 @@ class MutableHeaders(Headers):
+         self["vary"] = vary
+ 
+ 
+-class State:
++class State(MutableMapping[str, Any]):
+     """
+     An object that can be used to store arbitrary state.
+ 
+     Used for `request.state` and `app.state`.
+     """
+ 
+-    _state: dict[str, Any]
++    _state: MutableMapping[str, Any]
+ 
+-    def __init__(self, state: dict[str, Any] | None = None):
++    def __init__(self, state: Mapping[str, Any] | None = None):
+         if state is None:
+             state = {}
+-        super().__setattr__("_state", state)
++        super().__setattr__("_state", cast(MutableMapping[str, Any], state))
++
++    def __getitem__(self, key: str) -> Any:
++        return self._state[key]
++
++    def __setitem__(self, key: str, value: Any) -> None:
++        self._state[key] = value
++
++    def __delitem__(self, key: str) -> None:
++        del self._state[key]
++
++    def __iter__(self) -> Iterator[str]:
++        return iter(self._state)
++
++    def __len__(self) -> int:
++        return len(self._state)
++
++    def __getattribute__(self, key: str) -> Any:
++        if not key.startswith("_"):
++            state = super().__getattribute__("_state")
++            if key in state:
++                return state[key]
++        return super().__getattribute__(key)
+ 
+     def __setattr__(self, key: Any, value: Any) -> None:
+         self._state[key] = value
+diff --git a/tests/test_requests.py b/tests/test_requests.py
+index a2fa384..6afc29a 100644
+--- a/tests/test_requests.py
++++ b/tests/test_requests.py
+@@ -1,8 +1,8 @@
+ from __future__ import annotations
+ 
+ import sys
+-from collections.abc import Iterator
+-from typing import Any
++from collections.abc import Iterator, MutableMapping
++from typing import Any, TypedDict
+ 
+ import anyio
+ import pytest
+@@ -290,17 +290,33 @@ def test_request_is_disconnected(test_client_factory: TestClientFactory) -> None
+ 
+ 
+ def test_request_state_object() -> None:
+-    scope = {"state": {"old": "foo"}}
++    class LifespanState(TypedDict):
++        old: str
++        items: list[str]
++
++    lifespan_state = LifespanState(old="foo", items=[])
++    scope = {"state": lifespan_state}
+ 
+     s = State(scope["state"])
+ 
+-    s.new = "value"
++    assert isinstance(s, MutableMapping)
++    assert s["old"] == "foo"
++    assert list(s) == ["old", "items"]
++    assert len(s) == 2
++    assert s.items is lifespan_state["items"]
++
++    s["new"] = "value"
+     assert s.new == "value"
++    assert lifespan_state["new"] == "value"  # type: ignore[typeddict-unknown-key]
++
++    s.attribute = "value"
++    assert s["attribute"] == "value"
++    del s.attribute
+ 
+-    del s.new
++    del s["new"]
+ 
+     with pytest.raises(AttributeError):
+-        s.new
++        s.attribute
+ 
+ 
+ def test_request_state(test_client_factory: TestClientFactory) -> None:
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,3 @@
++{
++  "tests/test_routing.py::test_lifespan_state_async_cm": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,4 @@
++[
++  "tests/test_requests.py::test_request_state_object",
++  "tests/test_routing.py::test_lifespan_state_async_cm"
++]

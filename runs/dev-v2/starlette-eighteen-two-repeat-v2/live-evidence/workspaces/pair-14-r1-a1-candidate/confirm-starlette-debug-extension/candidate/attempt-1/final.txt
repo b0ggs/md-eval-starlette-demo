@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated `TestClient` to:
+
+- Preserve arbitrary `http.response.debug` mappings in `response.extensions`.
+- Retain `response.template` and `response.context` compatibility.
+- Add focused regression coverage for both requirements.
+
+`git diff --check` passed. Tests could not complete: `uv` was unavailable, and the timed direct pytest retry hung without output.

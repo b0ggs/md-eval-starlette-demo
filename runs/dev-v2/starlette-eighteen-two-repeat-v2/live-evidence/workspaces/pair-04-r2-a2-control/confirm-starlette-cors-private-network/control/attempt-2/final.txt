@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to `CORSMiddleware`.
+
+- Opted-in private-network preflights return 200 with `Access-Control-Allow-Private-Network: true`.
+- Default configuration returns 400 without that header.
+- Added tests and documentation.
+
+Direct ASGI checks, compilation, test collection, and diff validation passed. Full pytest execution was blocked by a baseline `TestClient` hang in the environment.

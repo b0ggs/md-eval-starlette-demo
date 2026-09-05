@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated session middleware to:
+
+- Emit `Set-Cookie` only when session data changes.
+- Add `Cookie` to `Vary` on session access while preserving existing values.
+- Cover read-only and untouched-session behavior with tests.
+
+Direct ASGI regression checks and syntax compilation pass. Full pytest was unavailable due missing `jinja2` and baseline `TestClient` hangs.

@@ -1,0 +1,36 @@
+diff --git a/starlette/responses.py b/starlette/responses.py
+index 0adf7fe..9c6fe41 100644
+--- a/starlette/responses.py
++++ b/starlette/responses.py
+@@ -513,7 +513,7 @@ class FileResponse(Response):
+             end_str = end_str.strip()
+ 
+             try:
+-                start = int(start_str) if start_str else file_size - int(end_str)
++                start = int(start_str) if start_str else max(file_size - int(end_str), 0)
+                 end = int(end_str) + 1 if start_str and end_str and int(end_str) < file_size else file_size
+                 ranges.append((start, end))
+             except ValueError:
+diff --git a/tests/test_responses.py b/tests/test_responses.py
+index 42c76f2..6ca101c 100644
+--- a/tests/test_responses.py
++++ b/tests/test_responses.py
+@@ -938,6 +938,18 @@ def test_file_response_suffix_range(file_response_client: TestClient) -> None:
+     assert response.content == README.encode("utf8")[-100:]
+ 
+ 
++def test_file_response_oversized_suffix_range(file_response_client: TestClient) -> None:
++    file_content = README.encode("utf8")
++    file_size = len(file_content)
++
++    response = file_response_client.get("/", headers={"Range": f"bytes=-{file_size + 1}"})
++
++    assert response.status_code == 206
++    assert response.headers["content-range"] == f"bytes 0-{file_size - 1}/{file_size}"
++    assert response.headers["content-length"] == str(file_size)
++    assert response.content == file_content
++
++
+ def test_file_response_multiple_calls(file_response_client: TestClient) -> None:
+     response = file_response_client.get("/", headers={"Range": "bytes=0-100"})
+     assert response.status_code == 206

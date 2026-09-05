@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix ranges to byte zero and added a regression test verifying `206`, full content, `Content-Range`, and `Content-Length`.
+
+Verification gap: pytest timed out; the single corrected retry failed collection because plugin autoload suppression removed the AnyIO marker registration.

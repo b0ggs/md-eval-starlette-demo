@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated gzip middleware so threshold-eligible identity responses add `Vary: Accept-Encoding` without compression. Small, pre-encoded, excluded, and streaming bodies preserve existing behavior. Added threshold regression assertions.
+
+`git diff --check` passed. Focused pytest execution timed out after 60 seconds with no output, so no adjacent regression was run.

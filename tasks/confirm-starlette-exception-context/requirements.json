@@ -1,0 +1,16 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/middleware/base.py",
+      "text": "raise app_exc from app_exc.__cause__ or app_exc.__context__",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "When HTTP middleware re-raises an application exception, it must preserve the application's explicit cause or meaningful context without inserting an internal stream exception into the visible chain."
+    },
+    "target_paths": [
+      "starlette/middleware/base.py"
+    ]
+  }
+}

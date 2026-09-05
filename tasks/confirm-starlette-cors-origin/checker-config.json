@@ -1,0 +1,19 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/middleware/test_cors.py::test_cors_allow_specific_origin",
+    "tests/middleware/test_cors.py::test_cors_disallowed_preflight",
+    "tests/middleware/test_cors.py::test_cors_allow_origin_regex"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirements": {
+    "R1": [
+      "tests/middleware/test_cors.py::test_cors_allow_all"
+    ],
+    "R2": [
+      "tests/middleware/test_cors.py::test_cors_vary_header_is_properly_set_for_credentialed_request"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-cors-origin"
+}

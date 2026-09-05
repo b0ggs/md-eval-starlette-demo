@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StreamingResponse` and `FileResponse` to emit valid WebSocket denial events while preserving HTTP behavior. Added coverage for streamed bodies, background-task execution, file bodies/status, and HTTP-only extension handling.
+
+`git diff --check` passed. Pytest verification was attempted, but the runner hung; even the unchanged adjacent denial test timed out after 30 seconds.

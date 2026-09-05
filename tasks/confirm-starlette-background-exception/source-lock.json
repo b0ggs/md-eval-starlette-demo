@@ -1,0 +1,24 @@
+{
+  "base_sha": "f13d354e18141cea9041ffad603d98197d880a73",
+  "fix_sha": "5cc4ddf1a5d07388015458e7c6b2ae5df617c372",
+  "private_test_sha256": {
+    "tests/middleware/test_base.py": "6716e45c7a2a3ae91c2565478a97535fb98e99dc5b078a505b21637c506a0762"
+  },
+  "public_file_count": 72,
+  "public_inventory_sha256": "1f58ab77ae60e74b460c8d380e62dc74adb8b0099ac8047e5d893979b4e2f121",
+  "public_solution_sha256": {
+    "starlette/middleware/base.py": "7c4c6d0e8cb58d440f230a862bac1e291957daac403e2ceb519ec6335bae1558",
+    "starlette/responses.py": "d6a774c4d0cf9d83e191f6378f475395bb250aeb235df14bf32293cc12d4b412"
+  },
+  "reference_file_count": 72,
+  "reference_inventory_sha256": "de601a0c028059e1278b9a0e70d526d641a85755e4ab631ddc2e40b43b1e674b",
+  "reference_solution_sha256": {
+    "starlette/middleware/base.py": "b3a9fd0f1fd1e5b476f675705b0ab7bd5255a8fdc84619f46b65fb296225b500",
+    "starlette/responses.py": "ffd3d60c2a68a99cd3f62553c0b36e438ed1b8c4f3a7a35b4a49da5b89692703"
+  },
+  "schema_version": "starlette-task-source-lock-v1",
+  "solution_paths": [
+    "starlette/middleware/base.py",
+    "starlette/responses.py"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "base_sha": "ef773fe9fe86d452ea014a39c6ede1029b341e73",
+  "checker_command": "python3 check.py WORKSPACE",
+  "extraction_note": "starlette-wall-token-confirmation-source-v1: outcome-independent selection from a distinct merged upstream production-and-test change; public and reference contain the complete pinned Starlette package and test tree plus root build/license/README metadata; reference overlays only the exact production fix path; private contains only the exact upstream changed test path; no candidate or prior task outcome informed selection",
+  "fix_sha": "014f0e2efaca4e34a0f4b4b1a28a70296035e09d",
+  "fix_test_patch_sha256": "7accfc8a534c074d011afab56aabd20e8dcc0d5af61851d95aca5b39f29608bb",
+  "issue_closed_at": "2026-05-31T08:24:52+00:00",
+  "issue_url": "https://github.com/Kludex/starlette/pull/3307",
+  "license_paths": [
+    {
+      "path": "public/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    },
+    {
+      "path": "reference/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    }
+  ],
+  "removed_instruction_paths": [],
+  "solution_patch_sha256": "e59ca119a0c76e1607a2daef8710c2649abe125407850f1090f642952ed5c124",
+  "source_url": "https://github.com/Kludex/starlette",
+  "spdx_id": "BSD-3-Clause"
+}

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` remains awaitable and now supports `async with`, closing all parsed uploads on normal or exceptional exit. Added focused multipart coverage.
+
+Verification gap: focused pytest runs timed out without output; `ruff` was unavailable. No unrelated files were changed.

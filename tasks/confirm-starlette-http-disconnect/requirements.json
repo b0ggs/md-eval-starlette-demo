@@ -1,0 +1,16 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/responses.py",
+      "text": "if spec_version >= (2, 4):",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "For HTTP ASGI 2.4 or newer, a streaming response must translate a send-side OSError into ClientDisconnect, stop consuming the body iterator, and avoid waiting on receive."
+    },
+    "target_paths": [
+      "starlette/responses.py"
+    ]
+  }
+}

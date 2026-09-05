@@ -1,0 +1,8 @@
+Implemented R1.
+
+- `BaseHTTPMiddleware` now propagates downstream background-task exceptions after the response body completes.
+- Added a regression test covering caller-visible propagation.
+- Focused lifecycle tests: 4 passed.
+- Syntax and diff checks passed.
+
+Full-suite execution was limited by sandbox `TestClient`/Trio runtime restrictions.

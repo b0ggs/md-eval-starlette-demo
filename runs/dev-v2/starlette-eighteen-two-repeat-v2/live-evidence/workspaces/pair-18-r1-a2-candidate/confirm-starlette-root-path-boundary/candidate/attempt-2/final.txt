@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to strip `root_path` only at complete segment boundaries or exact matches. Added unit and routing regression tests for `/root-queue/path`.
+
+`git diff --check` passed. Pytest collection was blocked by a third-party `multipart` deprecation warning treated as an error.

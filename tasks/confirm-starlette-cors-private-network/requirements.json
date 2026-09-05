@@ -1,0 +1,32 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/middleware/cors.py",
+      "text": "allow_private_network: bool = False",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "CORS middleware configured to allow private-network access must accept a matching private-network preflight and emit Access-Control-Allow-Private-Network: true."
+    },
+    "target_paths": [
+      "starlette/middleware/cors.py",
+      "docs/middleware.md"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/middleware/cors.py",
+      "text": "failures.append(\"private-network\")",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Without that opt-in, a private-network preflight must fail without emitting the private-network allow header."
+    },
+    "target_paths": [
+      "starlette/middleware/cors.py",
+      "docs/middleware.md"
+    ]
+  }
+}

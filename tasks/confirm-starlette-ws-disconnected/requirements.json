@@ -1,0 +1,30 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/websockets.py",
+      "text": "class WebSocketDisconnected(RuntimeError):",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "Expose `WebSocketDisconnected` as a distinct `RuntimeError` subclass, and raise it with the existing messages when low-level receive or send is attempted after the corresponding WebSocket side has entered the disconnected state."
+    },
+    "target_paths": [
+      "starlette/websockets.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/websockets.py",
+      "text": "raise WebSocketDisconnected('WebSocket is not connected. Need to call \"accept\" first.')",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "`receive_text()`, `receive_bytes()`, and `receive_json()` with a valid mode must raise `WebSocketDisconnected` when the application side is not connected; protocol-validation and invalid-mode failures must remain ordinary `RuntimeError` behavior, and peer disconnects must remain `WebSocketDisconnect`."
+    },
+    "target_paths": [
+      "starlette/websockets.py"
+    ]
+  }
+}

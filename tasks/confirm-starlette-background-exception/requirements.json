@@ -1,0 +1,17 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/middleware/base.py",
+      "text": "        if app_exc is not None:\n            raise app_exc\n\n    async def dispatch",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "An exception raised by a response background task must propagate through BaseHTTPMiddleware to the caller rather than being lost after the response body ends."
+    },
+    "target_paths": [
+      "starlette/middleware/base.py",
+      "starlette/responses.py"
+    ]
+  }
+}

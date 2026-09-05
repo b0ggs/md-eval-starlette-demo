@@ -1,0 +1,4 @@
+2026-09-04T14:58:28.654449Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /workspace/tests/middleware/test_session.py:
+def clear_session(request: Request) -> JSONResponse:
+    request.session.clear()
+    return JSONResponse({"session": request.session})

@@ -1,0 +1,24 @@
+{
+  "base_sha": "38f8999a229610b36f39d11f67d80515a15c6330",
+  "fix_sha": "9eea41ad3c26ad21b9bdfe4578c1cdad6c9b9ac2",
+  "private_test_sha256": {
+    "tests/test_testclient.py": "52af4e9bf7772f42bb1787606f59d722952ac0f5080337b345138e2f036d1e66"
+  },
+  "public_file_count": 76,
+  "public_inventory_sha256": "9195557648d6320731728393ea5419d6925cea9c8b44ccf61cac6b8868476741",
+  "public_solution_sha256": {
+    "docs/testclient.md": "ac6e2aebdf4df827f100f8b98bb112526a0d36c30d420d17ed7c23d7ecc84fbd",
+    "starlette/testclient.py": "52a9e32222a492b368339cabf0357163de2ed7e80959d7f3e88299c5b8c4eb4c"
+  },
+  "reference_file_count": 76,
+  "reference_inventory_sha256": "34ea68dbf8f78d598487b646718fdf6203193233ad23ff67d1d8d1548142f5ae",
+  "reference_solution_sha256": {
+    "docs/testclient.md": "b6419ed2ad4eef5044c8271d420480651d9d2d766f6e91b693279410682b4950",
+    "starlette/testclient.py": "4cf49139b46669742733f24c2e6baab0a358f4f1772f775f5f1d03b59aa42d6d"
+  },
+  "schema_version": "starlette-task-source-lock-v1",
+  "solution_paths": [
+    "docs/testclient.md",
+    "starlette/testclient.py"
+  ]
+}

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to CORS middleware. Opted-in private-network preflights now return the allow header; default requests fail without it. Added focused tests and documentation.
+
+Verification: diff check passed. The focused pytest command timed out without output; `uv` was unavailable.

@@ -1,0 +1,19 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/test_requests.py::test_request_url",
+    "tests/test_requests.py::test_request_scope_interface",
+    "tests/test_applications.py::test_routes"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirements": {
+    "R1": [
+      "tests/test_requests.py::test_request_state_object"
+    ],
+    "R2": [
+      "tests/test_applications.py::test_request_state"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-state-mapping"
+}

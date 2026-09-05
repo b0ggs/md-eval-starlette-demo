@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added strict shared authority parsing, IPv6/IPvFuture support, safe server fallbacks, host matching rules, and HTTPS redirect 400 handling. Added targeted regression tests.
+
+Static syntax and diff checks pass. Focused pytest completed 19 cases, then the repository TestClient stalled; the required timed retry also expired. Formatter was unavailable.

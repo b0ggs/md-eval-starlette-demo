@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Moved application exception re-raising outside the internal `EndOfStream` handler, preserving explicit causes and implicit contexts. Added regression coverage for both cases.
+
+`git diff --check` passed. Focused pytest verification timed out after 60 seconds; `uv` was unavailable.

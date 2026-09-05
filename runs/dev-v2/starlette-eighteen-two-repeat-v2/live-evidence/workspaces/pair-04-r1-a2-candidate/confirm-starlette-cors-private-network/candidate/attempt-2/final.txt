@@ -1,0 +1,8 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to CORS middleware. Matching private-network preflights now:
+
+- Return `200` with `Access-Control-Allow-Private-Network: true` when opted in.
+- Return `400` without that header by default.
+
+Added focused tests and documentation. Verification was limited: pytest timed out, and the permitted retry failed because plugin isolation removed the required AnyIO fixture.

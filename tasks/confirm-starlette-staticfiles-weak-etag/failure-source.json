@@ -1,0 +1,23 @@
+{
+  "base_sha": "e6f7ad1ab85efb27ab7910d8007b3f4531f7b083",
+  "checker_command": "python3 check.py WORKSPACE",
+  "extraction_note": "starlette-confirmation-source-v1: outcome-independent selection from a distinct merged upstream production-and-test fix; public and reference contain the complete pinned Starlette package and base test tree plus root build/license/README metadata; reference overlays only the exact merged production fix path; private contains only the exact upstream changed test path; no candidate or experimental outcome informed selection",
+  "fix_sha": "37309255b4c1b9c381a2d24a1eaf83100984a16a",
+  "fix_test_patch_sha256": "221df8c2ad47f9bbfe7045c2a1ba1a78fd4917633d75054b65de5c5afc7290f5",
+  "issue_closed_at": "2026-06-10T11:27:39+00:00",
+  "issue_url": "https://github.com/Kludex/starlette/pull/3193",
+  "license_paths": [
+    {
+      "path": "public/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    },
+    {
+      "path": "reference/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    }
+  ],
+  "removed_instruction_paths": [],
+  "solution_patch_sha256": "0ad53330efd63e058b2ad298566ce3627c2b7b45849079ee9a1cb3ae679ffae8",
+  "source_url": "https://github.com/Kludex/starlette",
+  "spdx_id": "BSD-3-Clause"
+}

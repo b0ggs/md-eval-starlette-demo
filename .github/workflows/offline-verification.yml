@@ -1,0 +1,37 @@
+name: Offline verification
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONNOUSERSITE: "1"
+      OPENAI_API_KEY: ""
+      CODEX_HOME: "${{ runner.temp }}/no-codex-home"
+      MDSEVAL_CODEX_HOME: "${{ runner.temp }}/no-codex-home"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run focused offline tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Verify all task fixtures individually
+        run: python3 -m tooling.starlette_demo verify-tasks
+      - name: Verify preserved experiment
+        run: python3 -m tooling.starlette_demo verify
+      - name: Reproduce canonical report
+        run: |
+          python3 -m tooling.starlette_demo report --report-path "$RUNNER_TEMP/reproduced-report.md"
+          cmp reports/STARLETTE_EIGHTEEN_TWO_REPEAT_V2_REPORT.md "$RUNNER_TEMP/reproduced-report.md"
+          test "$(sha256sum "$RUNNER_TEMP/reproduced-report.md" | cut -d ' ' -f 1)" = "e58b48c24a29c211c9dcbe4c26e86df8b69440e578987258ac1d2462f60f61f8"

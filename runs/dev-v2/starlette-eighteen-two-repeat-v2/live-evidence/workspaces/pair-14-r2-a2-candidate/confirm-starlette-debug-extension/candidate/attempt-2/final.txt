@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+`TestClient` now:
+
+- Exposes complete debug mappings at `response.extensions["http.response.debug"]`.
+- Preserves `response.template` and `response.context` compatibility.
+- Includes regression coverage for arbitrary and template debug data.
+
+`git diff --check` passed. The focused pytest run timed out after 30 seconds without output; no further test runners were attempted.

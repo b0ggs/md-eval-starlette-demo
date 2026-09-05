@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix byte ranges to start at byte zero. Added regression coverage verifying `206`, full content, and accurate `Content-Range`/`Content-Length`.
+
+`git diff --check` passed. Focused pytest verification was inconclusive because the runner did not complete within the bounded retry.

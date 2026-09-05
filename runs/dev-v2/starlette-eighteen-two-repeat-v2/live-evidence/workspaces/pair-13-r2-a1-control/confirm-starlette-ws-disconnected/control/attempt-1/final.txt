@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added public `WebSocketDisconnected(RuntimeError)` and applied it to disconnected low-level send/receive operations and receive helpers while preserving existing messages and other exception behavior.
+
+Added regression tests; targeted asyncio tests pass (`2 passed`). Trio execution is unavailable due sandbox socket restrictions.

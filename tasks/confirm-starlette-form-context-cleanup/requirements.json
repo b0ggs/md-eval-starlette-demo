@@ -1,0 +1,17 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/_utils.py",
+      "text": "class AwaitableOrContextManagerWrapper",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "`Request.form()` must remain directly awaitable and also support `async with`; leaving the context must close every parsed `UploadFile`, including when the context body raises."
+    },
+    "target_paths": [
+      "starlette/_utils.py",
+      "starlette/requests.py"
+    ]
+  }
+}

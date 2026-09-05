@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StaticFiles` to accept horizontal tabs as HTTP optional whitespace around comma-separated ETags. Added regression coverage for a weak ETag in the middle of a tab-separated list, verifying 304 with an empty body.
+
+Direct response checks, compilation, and diff validation passed. The pytest integration run stalled in the environment’s existing `anyio.to_thread` path.

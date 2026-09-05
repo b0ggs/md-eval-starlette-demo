@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated [base.py](/workspace/starlette/middleware/base.py:156) to preserve explicit causes or meaningful contexts while suppressing internal stream exceptions. Added regression tests in [test_base.py](/workspace/tests/middleware/test_base.py:345).
+
+Targeted asyncio tests pass. Full-suite verification was limited by missing optional dependencies and sandbox restrictions on Trio.

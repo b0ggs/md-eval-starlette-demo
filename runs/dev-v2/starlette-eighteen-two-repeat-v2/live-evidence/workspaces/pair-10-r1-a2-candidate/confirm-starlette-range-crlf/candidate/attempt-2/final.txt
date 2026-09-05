@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Multipart byte-range responses now use CRLF framing, standards-compliant terminal boundaries, and byte-derived `Content-Length` values. Tests cover GET, HEAD, reordered ranges, parser consumption, and small chunks.
+
+Static compilation passed. Focused pytest runs timed out before collection; `ruff` was unavailable.

@@ -1,0 +1,24 @@
+{
+  "base_sha": "4941b4a04993d087dea66e9287fe9472babee879",
+  "fix_sha": "49d4de92867cb38a781069701ad57cecab4a1a36",
+  "private_test_sha256": {
+    "tests/middleware/test_cors.py": "f01ebd951b6498e4f10569ce7efedc8492d32db195d0129650356f389ce94ebc"
+  },
+  "public_file_count": 74,
+  "public_inventory_sha256": "9dff2201e8d44400e465fca36dc936573ab0f50c83351443bf6422a470378d82",
+  "public_solution_sha256": {
+    "docs/middleware.md": "2444d8d77bb29c96494daf778425396b283231df8c2b988683a9b98d0380cee2",
+    "starlette/middleware/cors.py": "1e9d4e0450753906d81916ba85f4f306a9242473a15298ebb11af2ac722d1c54"
+  },
+  "reference_file_count": 74,
+  "reference_inventory_sha256": "13163dc0cc6b017219d87959e592132db50936ba50a887b340074694901a4bf1",
+  "reference_solution_sha256": {
+    "docs/middleware.md": "d6f81273220493a33f67f6842751d68ec1fd7cfd75ef3ea52518153aac14185c",
+    "starlette/middleware/cors.py": "92563ec70dd2fa86c16982780b59f2a3aad7a68477f4ef5a945a3d37e2093519"
+  },
+  "schema_version": "starlette-task-source-lock-v1",
+  "solution_paths": [
+    "docs/middleware.md",
+    "starlette/middleware/cors.py"
+  ]
+}

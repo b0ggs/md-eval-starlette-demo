@@ -1,0 +1,84 @@
+diff --git a/starlette/testclient.py b/starlette/testclient.py
+index 63d8790..d97cc04 100644
+--- a/starlette/testclient.py
++++ b/starlette/testclient.py
+@@ -294,6 +294,7 @@ class _TestClientTransport(httpx.BaseTransport):
+         response_started = False
+         response_complete: anyio.Event
+         raw_kwargs: dict[str, Any] = {"stream": io.BytesIO()}
++        response_debug: Mapping[str, Any] | None = None
+         template = None
+         context = None
+ 
+@@ -326,7 +327,7 @@ class _TestClientTransport(httpx.BaseTransport):
+             return {"type": "http.request", "body": body_bytes}
+ 
+         async def send(message: Message) -> None:
+-            nonlocal raw_kwargs, response_started, template, context
++            nonlocal raw_kwargs, response_started, response_debug, template, context
+ 
+             if message["type"] == "http.response.start":
+                 assert not response_started, 'Received multiple "http.response.start" messages.'
+@@ -344,8 +345,10 @@ class _TestClientTransport(httpx.BaseTransport):
+                     raw_kwargs["stream"].seek(0)
+                     response_complete.set()
+             elif message["type"] == "http.response.debug":
+-                template = message["info"]["template"]
+-                context = message["info"]["context"]
++                response_debug = message["info"]
++                if "template" in response_debug and "context" in response_debug:
++                    template = response_debug["template"]
++                    context = response_debug["context"]
+ 
+         try:
+             with self.portal_factory() as portal:
+@@ -367,6 +370,8 @@ class _TestClientTransport(httpx.BaseTransport):
+         raw_kwargs["stream"] = httpx.ByteStream(raw_kwargs["stream"].read())
+ 
+         response = httpx.Response(**raw_kwargs, request=request)
++        if response_debug is not None:
++            response.extensions["http.response.debug"] = response_debug
+         if template is not None:
+             response.template = template  # type: ignore[attr-defined]
+             response.context = context  # type: ignore[attr-defined]
+diff --git a/tests/test_testclient.py b/tests/test_testclient.py
+index b5a347c..1d932eb 100644
+--- a/tests/test_testclient.py
++++ b/tests/test_testclient.py
+@@ -230,6 +230,36 @@ def test_testclient_asgi3(test_client_factory: TestClientFactory) -> None:
+     assert response.text == "Hello, world!"
+ 
+ 
++def test_testclient_response_debug_extension(test_client_factory: TestClientFactory) -> None:
++    debug_info = {"traceback": ["line one", "line two"], "metadata": {"request_id": "123"}}
++
++    async def app(scope: Scope, receive: Receive, send: Send) -> None:
++        await send({"type": "http.response.debug", "info": debug_info})
++        await send({"type": "http.response.start", "status": 200, "headers": []})
++        await send({"type": "http.response.body", "body": b"Hello, world!"})
++
++    client = test_client_factory(app)
++    response = client.get("/")
++    assert response.extensions["http.response.debug"] == debug_info
++
++
++def test_testclient_response_debug_template_compatibility(test_client_factory: TestClientFactory) -> None:
++    template = object()
++    context = {"request": object()}
++    debug_info = {"template": template, "context": context, "metadata": {"request_id": "123"}}
++
++    async def app(scope: Scope, receive: Receive, send: Send) -> None:
++        await send({"type": "http.response.debug", "info": debug_info})
++        await send({"type": "http.response.start", "status": 200, "headers": []})
++        await send({"type": "http.response.body", "body": b"Hello, world!"})
++
++    client = test_client_factory(app)
++    response = client.get("/")
++    assert response.extensions["http.response.debug"] == debug_info
++    assert response.template is template  # type: ignore[attr-defined]
++    assert response.context is context  # type: ignore[attr-defined]
++
++
+ def test_websocket_blocking_receive(test_client_factory: TestClientFactory) -> None:
+     def app(scope: Scope) -> ASGIInstance:
+         async def respond(websocket: WebSocket) -> None:

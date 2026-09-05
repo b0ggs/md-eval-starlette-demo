@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StreamingResponse` for ASGI 2.4+ to translate send-side `OSError` into `ClientDisconnect`, stop iteration, and avoid `receive`. Added regression coverage; targeted tests pass (`2 passed`).
+
+Broader tests were limited by sandbox socket restrictions affecting Trio/TestClient.

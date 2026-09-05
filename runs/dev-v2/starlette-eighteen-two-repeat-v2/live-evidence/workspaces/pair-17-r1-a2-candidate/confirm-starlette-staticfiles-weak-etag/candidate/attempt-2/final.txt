@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated static-file ETag parsing to accept horizontal-tab OWS around comma-separated weak validators. Added coverage for weak matches in multiple positions while retaining strong-match and mismatch cases.
+
+`git diff --check` passed. Focused pytest runs timed out without output; no further test retries were attempted per `CODER.md`.

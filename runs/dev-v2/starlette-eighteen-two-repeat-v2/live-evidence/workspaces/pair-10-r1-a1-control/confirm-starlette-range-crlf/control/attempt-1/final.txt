@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated multipart byte-range responses to:
+
+- Use CRLF framing and a standards-compliant terminal boundary.
+- Calculate `Content-Length` from exact encoded bytes.
+- Cover GET, HEAD, reordered ranges, parser compatibility, and small chunks.
+
+Contract-focused parser and ASGI checks passed. Full pytest was blocked by nonfunctional AnyIO worker threads in the environment.

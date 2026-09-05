@@ -1,0 +1,35 @@
+diff --git a/starlette/staticfiles.py b/starlette/staticfiles.py
+index 5e4c83c..af584c4 100644
+--- a/starlette/staticfiles.py
++++ b/starlette/staticfiles.py
+@@ -210,7 +210,7 @@ class StaticFiles:
+         if if_none_match := request_headers.get("if-none-match"):
+             # The "etag" header is added by FileResponse, so it's always present.
+             etag = response_headers["etag"]
+-            return etag in [tag.strip(" W/") for tag in if_none_match.split(",")]
++            return etag in [tag.strip(" W/\t") for tag in if_none_match.split(",")]
+ 
+         try:
+             if_modified_since = parsedate(request_headers["if-modified-since"])
+diff --git a/tests/test_staticfiles.py b/tests/test_staticfiles.py
+index ddba6b0..508505b 100644
+--- a/tests/test_staticfiles.py
++++ b/tests/test_staticfiles.py
+@@ -211,9 +211,14 @@ def test_staticfiles_304_with_etag_match(tmpdir: Path, test_client_factory: Test
+     second_resp = client.get("/example.txt", headers={"if-none-match": last_etag})
+     assert second_resp.status_code == 304
+     assert second_resp.content == b""
+-    second_resp = client.get("/example.txt", headers={"if-none-match": f'W/{last_etag}, "123"'})
+-    assert second_resp.status_code == 304
+-    assert second_resp.content == b""
++    for if_none_match in [
++        f'W/{last_etag}, "123"',
++        f'"123",\tW/{last_etag},\t"456"',
++        f'"123",\tW/{last_etag}',
++    ]:
++        second_resp = client.get("/example.txt", headers={"if-none-match": if_none_match})
++        assert second_resp.status_code == 304
++        assert second_resp.content == b""
+ 
+ 
+ def test_staticfiles_200_with_etag_mismatch(tmpdir: Path, test_client_factory: TestClientFactory) -> None:

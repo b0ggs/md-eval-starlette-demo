@@ -1,0 +1,71 @@
+diff --git a/starlette/middleware/base.py b/starlette/middleware/base.py
+index 577918e..c474e8b 100644
+--- a/starlette/middleware/base.py
++++ b/starlette/middleware/base.py
+@@ -147,6 +147,7 @@ class BaseHTTPMiddleware:
+ 
+             task_group.start_soon(coro)
+ 
++            raise_app_exc = False
+             try:
+                 message = await recv_stream.receive()
+                 info = message.get("info", None)
+@@ -156,8 +157,14 @@ class BaseHTTPMiddleware:
+                 if app_exc is not None:
+                     nonlocal exception_already_raised
+                     exception_already_raised = True
+-                    raise app_exc
+-                raise RuntimeError("No response returned.")
++                    raise_app_exc = True
++                else:
++                    raise RuntimeError("No response returned.")
++
++            if raise_app_exc:
++                assert app_exc is not None
++                # Avoid chaining the application exception to an internal EndOfStream.
++                raise app_exc
+ 
+             assert message["type"] == "http.response.start"
+ 
+diff --git a/tests/middleware/test_base.py b/tests/middleware/test_base.py
+index d4548e6..58cb0ec 100644
+--- a/tests/middleware/test_base.py
++++ b/tests/middleware/test_base.py
+@@ -342,6 +342,37 @@ def test_exception_can_be_caught(test_client_factory: TestClientFactory) -> None
+     assert response.text == "TEST"
+ 
+ 
++@pytest.mark.parametrize("explicit_cause", [True, False])
++def test_application_exception_chain_is_preserved(
++    test_client_factory: TestClientFactory, explicit_cause: bool
++) -> None:
++    cause = RuntimeError("application context")
++
++    async def error_endpoint(_: Request) -> None:
++        if explicit_cause:
++            raise ValueError("application error") from cause
++        try:
++            raise cause
++        except RuntimeError:
++            raise ValueError("application error")
++
++    async def passthrough(request: Request, call_next: RequestResponseEndpoint) -> Response:
++        return await call_next(request)
++
++    app = Starlette(
++        middleware=[Middleware(BaseHTTPMiddleware, dispatch=passthrough)],
++        routes=[Route("/", error_endpoint)],
++    )
++
++    with test_client_factory(app) as client, pytest.raises(ValueError) as exc_info:
++        client.get("/")
++
++    if explicit_cause:
++        assert exc_info.value.__cause__ is cause
++    else:
++        assert exc_info.value.__context__ is cause
++
++
+ @pytest.mark.anyio
+ async def test_do_not_block_on_background_tasks() -> None:
+     response_complete = anyio.Event()

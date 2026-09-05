@@ -1,0 +1,36 @@
+{
+  "base_sha": "6ad24bb7809c2d833445d5b1cfb9e95c26260e56",
+  "fix_sha": "49e22755cd4495a11277c25f232510e9af56ea84",
+  "private_test_sha256": {
+    "tests/middleware/test_https_redirect.py": "5c22668d6dd6c69e2a2153c4b01d94ca0ec786f30271fd446b3e2a0a8cdf78ff",
+    "tests/middleware/test_trusted_host.py": "9cbcf175b2d794ce7aebf09d828e85ba650a6b82f3b820aab311d449fc376427",
+    "tests/test_datastructures.py": "bc6235b78ea3625c7d9ec4a8c982d144c7dbeabc0ce01f3af86ea4718d2a9f3b",
+    "tests/test_routing.py": "1fd340c98bee77ae2cf800baf93959820e00c3b51471587799c18c33f06a08da"
+  },
+  "public_file_count": 77,
+  "public_inventory_sha256": "a3bb7656ca37a452714a39e5d194b3b0d5e4699a3d4d7649abb8aef43f5fc61e",
+  "public_solution_sha256": {
+    "starlette/_utils.py": "c67b970ccf364019cb6ecb36b17fac74b72ec2e591f5030fd0040c295d658329",
+    "starlette/datastructures.py": "cda99d0e17a6d9fbca667a465858dd000c78d1c5ae79219bef918a588f2c98bf",
+    "starlette/middleware/httpsredirect.py": "48d4e579a6002c6a084d5ef1c1b89ce2007a55874cf1895e6bfca4722533df58",
+    "starlette/middleware/trustedhost.py": "0ca9a7b4b4ba421b162f032ee350a26e37c09b6eaf07b35a2cc578764b598bb4",
+    "starlette/routing.py": "aca06cf716c8c7e42f6e55f01851c89363f4d89f0224e791418fddf72a18393f"
+  },
+  "reference_file_count": 77,
+  "reference_inventory_sha256": "b965dd643d604d5b66f7f5d4202c10ccf1c787840f04229d3e445ac2ec145112",
+  "reference_solution_sha256": {
+    "starlette/_utils.py": "6b5fe30beb50b114cecabfdafc4b0d46cabd4ac8c373ce5dd922353b953164b1",
+    "starlette/datastructures.py": "35dc5f4f5bbd6be348a051a8cf6e7b7af335e29d6cabfff8ea2329f57a3ffbad",
+    "starlette/middleware/httpsredirect.py": "7e88112b2a4cc7780ace81e026928f2084c674ac4575408402ab244479dd6414",
+    "starlette/middleware/trustedhost.py": "5a478228ffe5a15839201a638ccca85971274b4511426a27f0879ef9d4f3e3a5",
+    "starlette/routing.py": "15215c88f4187c98cf498e757b188c0e06fbe80d95f78b7630c4e51f92611af4"
+  },
+  "schema_version": "starlette-task-source-lock-v1",
+  "solution_paths": [
+    "starlette/_utils.py",
+    "starlette/datastructures.py",
+    "starlette/middleware/httpsredirect.py",
+    "starlette/middleware/trustedhost.py",
+    "starlette/routing.py"
+  ]
+}

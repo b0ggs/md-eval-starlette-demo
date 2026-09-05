@@ -1,0 +1,82 @@
+diff --git a/starlette/testclient.py b/starlette/testclient.py
+index 63d8790..df4941d 100644
+--- a/starlette/testclient.py
++++ b/starlette/testclient.py
+@@ -294,8 +294,7 @@ class _TestClientTransport(httpx.BaseTransport):
+         response_started = False
+         response_complete: anyio.Event
+         raw_kwargs: dict[str, Any] = {"stream": io.BytesIO()}
+-        template = None
+-        context = None
++        response_debug = None
+ 
+         async def receive() -> Message:
+             nonlocal request_complete
+@@ -326,7 +325,7 @@ class _TestClientTransport(httpx.BaseTransport):
+             return {"type": "http.request", "body": body_bytes}
+ 
+         async def send(message: Message) -> None:
+-            nonlocal raw_kwargs, response_started, template, context
++            nonlocal raw_kwargs, response_started, response_debug
+ 
+             if message["type"] == "http.response.start":
+                 assert not response_started, 'Received multiple "http.response.start" messages.'
+@@ -344,8 +343,7 @@ class _TestClientTransport(httpx.BaseTransport):
+                     raw_kwargs["stream"].seek(0)
+                     response_complete.set()
+             elif message["type"] == "http.response.debug":
+-                template = message["info"]["template"]
+-                context = message["info"]["context"]
++                response_debug = message["info"]
+ 
+         try:
+             with self.portal_factory() as portal:
+@@ -365,11 +363,13 @@ class _TestClientTransport(httpx.BaseTransport):
+             }
+ 
+         raw_kwargs["stream"] = httpx.ByteStream(raw_kwargs["stream"].read())
++        if response_debug is not None:
++            raw_kwargs["extensions"] = {"http.response.debug": response_debug}
+ 
+         response = httpx.Response(**raw_kwargs, request=request)
+-        if template is not None:
+-            response.template = template  # type: ignore[attr-defined]
+-            response.context = context  # type: ignore[attr-defined]
++        if response_debug is not None and response_debug.get("template") is not None and "context" in response_debug:
++            response.template = response_debug["template"]  # type: ignore[attr-defined]
++            response.context = response_debug["context"]  # type: ignore[attr-defined]
+         return response
+ 
+ 
+diff --git a/tests/test_testclient.py b/tests/test_testclient.py
+index b5a347c..bfdd43f 100644
+--- a/tests/test_testclient.py
++++ b/tests/test_testclient.py
+@@ -32,6 +32,27 @@ def mock_service_endpoint(request: Request) -> JSONResponse:
+ mock_service = Starlette(routes=[Route("/", endpoint=mock_service_endpoint)])
+ 
+ 
++@pytest.mark.parametrize(
++    "debug_info",
++    [
++        {"custom": "value", "details": {"answer": 42}},
++        {"template": "template", "context": {"request": "request"}, "custom": "value"},
++    ],
++)
++def test_http_response_debug(test_client_factory: TestClientFactory, debug_info: dict[str, Any]) -> None:
++    async def app(scope: Scope, receive: Receive, send: Send) -> None:
++        await send({"type": "http.response.debug", "info": debug_info})
++        await send({"type": "http.response.start", "status": 200, "headers": []})
++        await send({"type": "http.response.body", "body": b""})
++
++    response = test_client_factory(app).get("/")
++
++    assert response.extensions["http.response.debug"] == debug_info
++    if "template" in debug_info:
++        assert response.template == debug_info["template"]  # type: ignore[attr-defined]
++        assert response.context == debug_info["context"]  # type: ignore[attr-defined]
++
++
+ def current_task() -> Task[Any] | trio.lowlevel.Task:
+     # anyio's TaskInfo comparisons are invalid after their associated native
+     # task object is GC'd https://github.com/agronholm/anyio/issues/324

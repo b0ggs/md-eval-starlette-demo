@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated CORS middleware to echo the request origin whenever wildcard origins and credentials are enabled, while preserving and appending `Origin` to `Vary`.
+
+Added focused regression coverage. Direct ASGI assertions, test collection, syntax, and diff checks passed. Full pytest execution was prevented by an environment-level `TestClient` startup stall.

@@ -1,0 +1,30 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/_utils.py",
+      "text": "route_path = re.sub(r\"^\" + root_path + r\"(?=/|$)\", \"\", scope[\"path\"])",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "When deriving a route path, `get_route_path()` must remove `scope[\"root_path\"]` only when it matches a complete leading path segment or the entire path; a mere character-prefix match must leave `scope[\"path\"]` unchanged."
+    },
+    "target_paths": [
+      "starlette/_utils.py"
+    ]
+  },
+  "R2": {
+    "omission_probe": {
+      "path": "starlette/_utils.py",
+      "text": "r\"(?=/|$)\"",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "With an application root path such as `/root`, routing must still match an application route whose first segment only begins with the same text, such as `/root-queue/path`."
+    },
+    "target_paths": [
+      "starlette/_utils.py"
+    ]
+  }
+}

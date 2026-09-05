@@ -1,0 +1,6 @@
+IMPLEMENTED
+
+- Cookies are now written only when session data changes, including nested mutations.
+- Session access adds `Cookie` to `Vary` while preserving existing values.
+- Added regression coverage for unchanged reads, existing `Vary`, and nested changes.
+- Direct ASGI checks passed; the repository’s `TestClient` pytest run hung on the unchanged baseline.

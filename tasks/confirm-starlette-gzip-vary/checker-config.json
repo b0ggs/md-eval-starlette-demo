@@ -1,0 +1,21 @@
+{
+  "regression_timeout_seconds": 45,
+  "regressions": [
+    "tests/middleware/test_gzip.py::test_gzip_responses",
+    "tests/middleware/test_gzip.py::test_gzip_streaming_response",
+    "tests/middleware/test_gzip.py::test_gzip_ignored_on_server_sent_events"
+  ],
+  "requirement_timeout_seconds": 30,
+  "requirements": {
+    "R1": [
+      "tests/middleware/test_gzip.py::test_gzip_not_in_accept_encoding",
+      "tests/middleware/test_gzip.py::test_gzip_ignored_for_small_responses"
+    ],
+    "R2": [
+      "tests/middleware/test_gzip.py::test_gzip_streaming_response_identity",
+      "tests/middleware/test_gzip.py::test_gzip_ignored_for_responses_with_encoding_set"
+    ]
+  },
+  "schema_version": "starlette-task-checker-config-v1",
+  "task_id": "confirm-starlette-gzip-vary"
+}

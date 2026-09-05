@@ -1,0 +1,139 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index e621900..f646e91 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -663,23 +663,47 @@ class MutableHeaders(Headers):
+         self["vary"] = vary
+ 
+ 
+-class State:
++class State(MutableMapping[str, Any]):
+     """
+     An object that can be used to store arbitrary state.
+ 
+     Used for `request.state` and `app.state`.
+     """
+ 
+-    _state: dict[str, Any]
++    _state: MutableMapping[str, Any]
+ 
+-    def __init__(self, state: dict[str, Any] | None = None):
++    def __init__(self, state: MutableMapping[str, Any] | None = None):
+         if state is None:
+             state = {}
+         super().__setattr__("_state", state)
+ 
+-    def __setattr__(self, key: Any, value: Any) -> None:
++    def __getitem__(self, key: str) -> Any:
++        return self._state[key]
++
++    def __setitem__(self, key: str, value: Any) -> None:
+         self._state[key] = value
+ 
++    def __delitem__(self, key: str) -> None:
++        del self._state[key]
++
++    def __iter__(self) -> Iterator[str]:
++        return iter(self._state)
++
++    def __len__(self) -> int:
++        return len(self._state)
++
++    def __getattribute__(self, key: str) -> Any:
++        if key != "_state":
++            state = super().__getattribute__("_state")
++            try:
++                return state[key]
++            except KeyError:
++                pass
++        return super().__getattribute__(key)
++
++    def __setattr__(self, key: Any, value: Any) -> None:
++        self[key] = value
++
+     def __getattr__(self, key: Any) -> Any:
+         try:
+             return self._state[key]
+@@ -688,4 +712,4 @@ class State:
+             raise AttributeError(message.format(self.__class__.__name__, key))
+ 
+     def __delattr__(self, key: Any) -> None:
+-        del self._state[key]
++        del self[key]
+diff --git a/tests/test_requests.py b/tests/test_requests.py
+index a2fa384..02f89ce 100644
+--- a/tests/test_requests.py
++++ b/tests/test_requests.py
+@@ -290,12 +290,26 @@ def test_request_is_disconnected(test_client_factory: TestClientFactory) -> None
+ 
+ 
+ def test_request_state_object() -> None:
+-    scope = {"state": {"old": "foo"}}
++    lifespan_state = State({"old": "foo", "items": []})
++    scope: Scope = {"type": "http", "state": lifespan_state}
+ 
+-    s = State(scope["state"])
++    s = Request(scope).state
+ 
+-    s.new = "value"
++    assert s["old"] == "foo"
++    assert list(s) == ["old", "items"]
++    assert len(s) == 2
++
++    s["new"] = "value"
+     assert s.new == "value"
++    assert lifespan_state["new"] == "value"
++
++    del s["new"]
++
++    s.new = "value"
++    assert s["new"] == "value"
++
++    s.items.append(1)
++    assert lifespan_state.items == [1]
+ 
+     del s.new
+ 
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,1 @@
++{}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,3 @@
++[
++  "tests/test_requests.py::test_request_state_object"
++]

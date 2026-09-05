@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated `TestClient` to:
+
+- Preserve complete debug mappings in `response.extensions["http.response.debug"]`.
+- Retain `response.template` and `response.context` compatibility.
+- Added focused regression tests.
+
+Direct transport, syntax, and diff checks passed. Full pytest/lint checks were limited by baseline test hangs and missing development dependencies.

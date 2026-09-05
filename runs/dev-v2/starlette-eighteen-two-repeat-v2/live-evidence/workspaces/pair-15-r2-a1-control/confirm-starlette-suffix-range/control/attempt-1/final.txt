@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix byte ranges to zero, returning the full file as `206` with accurate `Content-Range` and `Content-Length`. Added regression coverage.
+
+Direct GET/HEAD checks and diff validation passed. Pytest could not complete because AnyIO worker threads hang in this environment.

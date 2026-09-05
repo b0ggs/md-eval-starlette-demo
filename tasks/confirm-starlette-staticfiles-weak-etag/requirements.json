@@ -1,0 +1,16 @@
+{
+  "R1": {
+    "omission_probe": {
+      "path": "starlette/staticfiles.py",
+      "text": "tag.strip().removeprefix(\"W/\")",
+      "type": "text_absent"
+    },
+    "stated_in": {
+      "path": ".issue-contract.md",
+      "quote": "StaticFiles must recognize a matching weak entity tag in any position of a comma-separated If-None-Match field when list members are separated by HTTP optional whitespace, including horizontal tabs; a match must return 304 with an empty body while existing strong-tag, space-separated weak-tag, and mismatch behavior remains unchanged."
+    },
+    "target_paths": [
+      "starlette/staticfiles.py"
+    ]
+  }
+}

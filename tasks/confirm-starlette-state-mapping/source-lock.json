@@ -1,0 +1,28 @@
+{
+  "base_sha": "cfce146611f7cc2b14c524b26d7e1d6cf0ddcd9f",
+  "fix_sha": "d8c7cf9aca95b31c7a70473d03c26bc8ce33cd74",
+  "private_test_sha256": {
+    "tests/test_applications.py": "0099a8920b9b00aa0e84487460c0e91019303cbd9da7f91132c7c4cd3df3649a",
+    "tests/test_requests.py": "60b95732e7655820058bcd15f17f8dcb8179131c2d9ab51505b8cbbfdfec0643"
+  },
+  "public_file_count": 74,
+  "public_inventory_sha256": "8570048d4fad1d8c2f0a510a5bce96d324b6616c980fb170feb28967011517c7",
+  "public_solution_sha256": {
+    "docs/lifespan.md": "a9de5de995935cfbd676335fbbbee6f87c96086174aff3d17ecdf89b6220e788",
+    "starlette/datastructures.py": "dde752330006431c7ebc1ccb948a95825be5bd6b8c03839133cdee59899c3030",
+    "starlette/requests.py": "666520505c3345a05fbd1b8544621c1078a1c4df238f7de9c58d89db594cadf3"
+  },
+  "reference_file_count": 74,
+  "reference_inventory_sha256": "bab2f8c8d7081a8f46adbcf341577e5fee3dfbbc53ac3753434b3efba02185d0",
+  "reference_solution_sha256": {
+    "docs/lifespan.md": "46ef9d8bd0519e52a7750035c064f453f45880121c3ad87e1de0e3cbdde4e0b6",
+    "starlette/datastructures.py": "d4d727638015f7a936c63d514382fa82a95d9a2441d60403145376fea0819930",
+    "starlette/requests.py": "bd08ebaef2939e13032dbfb8c94e0869dd6066454008567db6e51de2fc675e64"
+  },
+  "schema_version": "starlette-task-source-lock-v1",
+  "solution_paths": [
+    "docs/lifespan.md",
+    "starlette/datastructures.py",
+    "starlette/requests.py"
+  ]
+}

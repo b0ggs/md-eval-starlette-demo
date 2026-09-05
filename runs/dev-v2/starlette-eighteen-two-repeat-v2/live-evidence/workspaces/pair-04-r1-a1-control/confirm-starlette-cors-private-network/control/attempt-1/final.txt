@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to `CORSMiddleware`:
+
+- Opted-in private-network preflights return 200 with `Access-Control-Allow-Private-Network: true`.
+- Default configuration rejects them with 400 and no allow header.
+- Added focused tests and documentation.
+
+Direct ASGI checks, syntax compilation, and diff checks pass. The repository’s TestClient suite hangs in the sealed AnyIO portal, including for unchanged requests; Ruff and mypy are unavailable.

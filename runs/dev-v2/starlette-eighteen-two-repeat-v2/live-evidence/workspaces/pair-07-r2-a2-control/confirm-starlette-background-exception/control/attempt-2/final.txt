@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to propagate late background-task exceptions after task-group completion. Added a regression test covering the race.
+
+Validation: 4 targeted tests passed; compilation and diff checks passed. Trio is unavailable in the sandbox; `mypy` and `ruff` are not installed.

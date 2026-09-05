@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` is now directly awaitable and usable with `async with`. Context exit closes all parsed uploads, including when the body raises.
+
+Added regression coverage for multiple file cleanup on exceptions. Verification was attempted, but `uv` was unavailable and the configured `pytest` run timed out during startup with no output. Diff and whitespace checks passed.
