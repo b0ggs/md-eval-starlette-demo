@@ -226,7 +226,10 @@ class StarletteDemoTests(unittest.TestCase):
         self.assertIn("tooling.starlette_demo verify-tasks", workflow)
         self.assertIn("tooling.starlette_demo verify", workflow)
         self.assertIn("tooling.starlette_demo report", workflow)
-        self.assertIn("MDSEVAL_CODEX_HOME", workflow)
+        self.assertIn(
+            'MDSEVAL_CODEX_HOME: "/tmp/md-eval-starlette-no-codex-home"',
+            workflow,
+        )
         self.assertIn("persist-credentials: false", workflow)
         for forbidden in (
             "starlette_eighteen_task_experiment run",
