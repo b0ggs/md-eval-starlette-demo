@@ -1,5 +1,12 @@
 # MD Eval: Starlette demonstration
 
+**Can a short set of [MD instructions](controls/coder/evidence-bounded-v1.md) help an LLM (codex 5.6 sol) work faster and use fewer resources while still passing the same tests?**
+
+This project compares the same coding tasks with and without MD instructions.
+The MD instructions are succinct and give information about where to look, what
+to test, and when to stop. This repo includes the results and detailed records
+so you can check the findings without running the AI again.
+
 This repository is a self-contained, offline-reproducible case study of whether
 a repository instruction file helped the same coding model solve the same
 Starlette tasks. It contains the 18 task fixtures, frozen controls, raw run
