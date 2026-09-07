@@ -1,6 +1,6 @@
 {
   "schema": "product-a-public-runtime-v2",
-  "status": "unpublished",
+  "status": "published",
   "platform": "linux/amd64",
   "repository": "ghcr.io/b0ggs/md-eval-starlette-runtime",
   "codex": {
@@ -28,8 +28,8 @@
     "standard": {
       "source_task": "full-starlette-websocket-denial",
       "image_lock_sha256": "24052fd1f6931e31f3853079b9b391c2bf104d2ed6ec06dac2fd252fea3e34cb",
-      "pull": null,
-      "config_id": null,
+      "pull": "ghcr.io/b0ggs/md-eval-starlette-runtime@sha256:a8b42f456f080f2bf6549de32ed987b3ab6de99805bdc9ddeff6c96281b57c32",
+      "config_id": "sha256:6bbb9edfa1c408bc75c5c5e93dd71547fdfbaef8d565db52736638fd458b1ee0",
       "tasks": [
         "full-starlette-websocket-denial",
         "confirm-starlette-cors-origin",
@@ -46,15 +46,15 @@
     "session": {
       "source_task": "confirm-starlette-session-tracking",
       "image_lock_sha256": "c43532687a7bf69ec02b8008e7322209dd64c6d06778e26561097bdb3ef2dddf",
-      "pull": null,
-      "config_id": null,
+      "pull": "ghcr.io/b0ggs/md-eval-starlette-runtime@sha256:6c5a7c497fa5ef523e35f363ddf1b9ee7557751fee1ec12740721e26c9a33f76",
+      "config_id": "sha256:dc3e511f9e0a6debb3ab137bd84943837179c0bd6e3824f9a7ed352726a5bebb",
       "tasks": ["confirm-starlette-session-tracking"]
     },
     "modern": {
       "source_task": "confirm-starlette-malformed-host",
       "image_lock_sha256": "adf210e6cd3cacc2ea6696fa1669ac33e6354f8240da1aecf70ee581d0b87c41",
-      "pull": null,
-      "config_id": null,
+      "pull": "ghcr.io/b0ggs/md-eval-starlette-runtime@sha256:1592c7f0a634a759c37216f0ab40a9c4dd7077aa1ffa0781446fd42182c90e41",
+      "config_id": "sha256:fa66ee769ca116398db3ce8724f41f57a15aa68223d8b0f2a62899f9d923d156",
       "tasks": [
         "confirm-starlette-malformed-host",
         "confirm-starlette-ws-disconnected",

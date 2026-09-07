@@ -31,9 +31,8 @@ def published_lock() -> dict:
 
 
 class ProductAPublicRuntimeTests(unittest.TestCase):
-    def test_checked_in_lock_truthfully_refuses_unpublished_runtime(self) -> None:
-        with self.assertRaisesRegex(runtime.RuntimeSetupError, "not published yet"):
-            runtime._load_lock()
+    def test_checked_in_lock_is_published_and_complete(self) -> None:
+        self.assertEqual(set(runtime._load_lock()["task_images"]), set(product_a.TASK_IDS))
 
     def test_published_lock_covers_exact_fixed_task_set(self) -> None:
         lock = published_lock()

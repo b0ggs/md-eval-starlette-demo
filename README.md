@@ -176,11 +176,6 @@ anything other than `y` or `yes` declines and exits before creating a request.
 Later runs verify and reuse those artifacts. If Docker is installed at a
 nonstandard path, set `MDSEVAL_DOCKER` to its executable.
 
-Release assembly note: until `runtime/product-a-v2/runtime-lock.json` is marked
-`published` with the three clean GHCR digest/config-ID pairs, the command
-intentionally stops before creating a request. Opaque historical images are
-never substituted.
-
 ### What the command does
 
 After the runtime and login are ready, the command creates a new, unapproved
