@@ -337,7 +337,7 @@ python3 -c 'from hashlib import sha256; from pathlib import Path; print(sha256(P
 ```
 
 The expected digest is
-`ee7042110ed9dee2fae4346886716722fad0edc638dd991ba853fb001516bf17`.
+`369d88a2bf44b1edd469e5d8fcbbe3a3a7ae3d179863fb8584d5db1942213e25`.
 A successful `cmp` prints nothing and exits zero. These commands do not inspect
 authentication, access the network, or invoke a model.
 
