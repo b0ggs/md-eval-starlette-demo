@@ -1,0 +1,82 @@
+diff --git a/starlette/staticfiles.py b/starlette/staticfiles.py
+index 5e4c83c..bee7b32 100644
+--- a/starlette/staticfiles.py
++++ b/starlette/staticfiles.py
+@@ -210,7 +210,7 @@ class StaticFiles:
+         if if_none_match := request_headers.get("if-none-match"):
+             # The "etag" header is added by FileResponse, so it's always present.
+             etag = response_headers["etag"]
+-            return etag in [tag.strip(" W/") for tag in if_none_match.split(",")]
++            return etag in [tag.strip(" \tW/") for tag in if_none_match.split(",")]
+ 
+         try:
+             if_modified_since = parsedate(request_headers["if-modified-since"])
+diff --git a/tests/test_staticfiles.py b/tests/test_staticfiles.py
+index ddba6b0..17b057d 100644
+--- a/tests/test_staticfiles.py
++++ b/tests/test_staticfiles.py
+@@ -211,9 +211,15 @@ def test_staticfiles_304_with_etag_match(tmpdir: Path, test_client_factory: Test
+     second_resp = client.get("/example.txt", headers={"if-none-match": last_etag})
+     assert second_resp.status_code == 304
+     assert second_resp.content == b""
+-    second_resp = client.get("/example.txt", headers={"if-none-match": f'W/{last_etag}, "123"'})
+-    assert second_resp.status_code == 304
+-    assert second_resp.content == b""
++    weak_etag_headers = [
++        f'W/{last_etag}, "123"',
++        f'"123", W/{last_etag}',
++        f'"123",\tW/{last_etag}\t,\t"456"',
++    ]
++    for if_none_match in weak_etag_headers:
++        second_resp = client.get("/example.txt", headers={"if-none-match": if_none_match})
++        assert second_resp.status_code == 304
++        assert second_resp.content == b""
+ 
+ 
+ def test_staticfiles_200_with_etag_mismatch(tmpdir: Path, test_client_factory: TestClientFactory) -> None:
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,3 @@
++{
++  "tests/test_staticfiles.py::test_staticfiles_304_with_etag_match": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,4 @@
++[
++  "tests/test_staticfiles.py::test_staticfiles_200_with_etag_mismatch",
++  "tests/test_staticfiles.py::test_staticfiles_304_with_etag_match"
++]

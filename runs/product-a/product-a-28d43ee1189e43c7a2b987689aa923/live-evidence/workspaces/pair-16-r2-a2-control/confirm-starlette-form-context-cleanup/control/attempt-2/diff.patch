@@ -1,0 +1,174 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 96c1be9..d44a1c8 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -3,11 +3,11 @@ from __future__ import annotations
+ import functools
+ import re
+ import sys
+-from collections.abc import AsyncGenerator, Awaitable, Callable
++from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+ from contextlib import asynccontextmanager
+ from dataclasses import dataclass
+ from ipaddress import AddressValueError, IPv6Address
+-from typing import Any, TypeVar, overload
++from typing import Any, Generic, Protocol, TypeVar, overload
+ 
+ import anyio.abc
+ 
+@@ -33,6 +33,29 @@ if sys.version_info < (3, 11):  # pragma: no cover
+ T = TypeVar("T")
+ AwaitableCallable = Callable[..., Awaitable[T]]
+ 
++
++class SupportsAsyncClose(Protocol):
++    async def close(self) -> None: ...
++
++
++SupportsAsyncCloseType = TypeVar("SupportsAsyncCloseType", bound=SupportsAsyncClose)
++
++
++class AwaitableOrContextManagerWrapper(Generic[SupportsAsyncCloseType]):
++    def __init__(self, aw: Awaitable[SupportsAsyncCloseType]) -> None:
++        self.aw = aw
++
++    def __await__(self) -> Generator[Any, None, SupportsAsyncCloseType]:
++        return self.aw.__await__()
++
++    async def __aenter__(self) -> SupportsAsyncCloseType:
++        self.entered = await self.aw
++        return self.entered
++
++    async def __aexit__(self, *args: Any) -> None:
++        await self.entered.close()
++
++
+ # Reject characters that could make a Host header change the URL path or authority.
+ _HOST_RE = re.compile(
+     r"^(?P<host>[a-z0-9._~%!$&'()*+,;=-]+|\[(?:(?P<ipv6>[a-f0-9]*:[a-f0-9.:]+)|"
+diff --git a/starlette/requests.py b/starlette/requests.py
+index a14ae11..6cdc623 100644
+--- a/starlette/requests.py
++++ b/starlette/requests.py
+@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Generic, NoReturn, cast
+ 
+ import anyio
+ 
++from starlette._utils import AwaitableOrContextManagerWrapper
+ from starlette.datastructures import URL, Address, FormData, Headers, QueryParams, State
+ from starlette.exceptions import HTTPException
+ from starlette.formparsers import FormParser, MultiPartException, MultiPartParser
+@@ -309,14 +310,16 @@ class Request(HTTPConnection[StateT]):
+                 self._form = FormData()
+         return self._form
+ 
+-    async def form(
++    def form(
+         self,
+         *,
+         max_files: int | float = 1000,
+         max_fields: int | float = 1000,
+         max_part_size: int = 1024 * 1024,
+-    ) -> FormData:
+-        return await self._get_form(max_files=max_files, max_fields=max_fields, max_part_size=max_part_size)
++    ) -> AwaitableOrContextManagerWrapper[FormData]:
++        return AwaitableOrContextManagerWrapper(
++            self._get_form(max_files=max_files, max_fields=max_fields, max_part_size=max_part_size)
++        )
+ 
+     async def close(self) -> None:
+         if self._form is not None:  # pragma: no branch
+diff --git a/tests/test_requests.py b/tests/test_requests.py
+index 028ac62..de72d1c 100644
+--- a/tests/test_requests.py
++++ b/tests/test_requests.py
+@@ -2,12 +2,13 @@ from __future__ import annotations
+ 
+ import sys
+ from collections.abc import Iterator
++from tempfile import SpooledTemporaryFile
+ from typing import Any
+ 
+ import anyio
+ import pytest
+ 
+-from starlette.datastructures import URL, Address, State
++from starlette.datastructures import URL, Address, FormData, State, UploadFile
+ from starlette.requests import ClientDisconnect, Request
+ from starlette.responses import JSONResponse, PlainTextResponse, Response
+ from starlette.types import Message, Receive, Scope, Send
+@@ -132,6 +133,25 @@ def test_request_form_urlencoded(test_client_factory: TestClientFactory) -> None
+     assert response.json() == {"form": {"abc": "123 @"}}
+ 
+ 
++@pytest.mark.anyio
++@pytest.mark.parametrize("raise_in_context", [False, True])
++async def test_request_form_context_manager_closes_files(raise_in_context: bool) -> None:
++    request = Request({"type": "http"})
++    uploads = [UploadFile(SpooledTemporaryFile()), UploadFile(SpooledTemporaryFile())]
++    request._form = FormData([("file", upload) for upload in uploads])
++
++    if raise_in_context:
++        with pytest.raises(RuntimeError, match="context body failed"):
++            async with request.form() as form:
++                assert form is request._form
++                raise RuntimeError("context body failed")
++    else:
++        async with request.form() as form:
++            assert form is request._form
++
++    assert all(upload.file.closed for upload in uploads)
++
++
+ def test_request_body_then_stream(test_client_factory: TestClientFactory) -> None:
+     async def app(scope: Scope, receive: Receive, send: Send) -> None:
+         request = Request(scope, receive)
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,4 @@
++{
++  "tests/test_requests.py::test_request_form_context_manager_closes_files[trio-False]": true,
++  "tests/test_requests.py::test_request_form_context_manager_closes_files[trio-True]": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,6 @@
++[
++  "tests/test_requests.py::test_request_form_context_manager_closes_files[asyncio-False]",
++  "tests/test_requests.py::test_request_form_context_manager_closes_files[asyncio-True]",
++  "tests/test_requests.py::test_request_form_context_manager_closes_files[trio-False]",
++  "tests/test_requests.py::test_request_form_context_manager_closes_files[trio-True]"
++]

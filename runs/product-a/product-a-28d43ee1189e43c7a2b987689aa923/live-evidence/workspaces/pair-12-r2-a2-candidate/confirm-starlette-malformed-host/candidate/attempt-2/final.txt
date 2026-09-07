@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added strict shared Host authority parsing, safe URL/server fallback with IPv6 brackets, robust Host/TrustedHost matching, and safe HTTPS redirects with default-port normalization and 400 handling.
+
+Contract reproducer, compile checks, and adjacent routing regression passed. Pytest stalled in this environment; Ruff/Mypy were unavailable.

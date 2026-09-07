@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `State` to support keyed get/set/delete, iteration, and length while preserving attribute access. It now retains custom mutable mapping types and shared values in request state.
+
+Added focused regression tests; 2 passed. Broader async tests stalled due to the evaluation environment.

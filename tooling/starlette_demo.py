@@ -30,7 +30,7 @@ SOURCE_TASK_LEDGER = ROOT / "tasks/ledger.jsonl"
 SOURCE_EXPOSURE_LEDGER = ROOT / "tasks/exposures.jsonl"
 DEMO_TASK_LEDGER = ROOT / "verification/starlette-task-ledger.jsonl"
 EXPECTED_REPORT_SHA256 = (
-    "e58b48c24a29c211c9dcbe4c26e86df8b69440e578987258ac1d2462f60f61f8"
+    "369d88a2bf44b1edd469e5d8fcbbe3a3a7ae3d179863fb8584d5db1942213e25"
 )
 EXPECTED_REQUEST_SHA256 = (
     "e64856701e1537bfe6ff826f321b62f750450b24d8fe24d6fc7d5497acca8137"

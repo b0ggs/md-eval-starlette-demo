@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added identity-path response handling so compressible responses include `Vary: Accept-Encoding` without compression. Small, pre-encoded, and excluded responses remain unchanged; streaming bodies complete normally.
+
+Added focused coverage. `git diff --check` passed; pytest timed out without output, and Ruff was unavailable.

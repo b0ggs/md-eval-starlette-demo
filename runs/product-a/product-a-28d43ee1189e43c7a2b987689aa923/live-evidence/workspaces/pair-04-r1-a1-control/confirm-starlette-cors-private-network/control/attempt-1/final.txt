@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Added explicit `allow_private_network=False` CORS configuration:
+
+- Enabled matching preflights return `Access-Control-Allow-Private-Network: true`.
+- Private-network preflights are rejected by default without that header.
+- Added tests and documentation.
+
+Direct ASGI validation and test collection passed. The environment’s `TestClient` hangs on existing tests; Ruff and mypy are unavailable.

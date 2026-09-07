@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Deferred re-raising the application exception until outside the internal `EndOfStream` handler, preserving explicit causes and meaningful context.
+
+Added regression coverage for both chaining forms. Focused and adjacent middleware tests pass on asyncio and Trio.

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to re-raise captured downstream exceptions after background-task completion. Added a regression test.
+
+Verification: 4 targeted asyncio tests passed; diff checks passed. Trio was unavailable due sandbox socket restrictions.

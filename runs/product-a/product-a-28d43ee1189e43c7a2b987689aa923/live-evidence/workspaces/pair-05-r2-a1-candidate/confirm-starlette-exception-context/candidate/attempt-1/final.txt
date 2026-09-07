@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated HTTP middleware to preserve the application exception’s cause/context when re-raising, avoiding internal `EndOfStream` in the visible chain. Added regression coverage for explicit and implicit chaining.
+
+`git diff --check` passed. The focused pytest run timed out after 30 seconds without output, so runtime verification remains incomplete.

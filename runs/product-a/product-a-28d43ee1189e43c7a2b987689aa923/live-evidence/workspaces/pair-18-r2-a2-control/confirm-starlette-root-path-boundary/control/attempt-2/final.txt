@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to strip `root_path` only at complete path boundaries. Added utility and routing regressions for `/root-queue/path`.
+
+Validation:
+
+- Utility tests: 11 passed
+- Direct ASGI routing regression passed
+- Syntax and diff checks passed
+- Repository `TestClient` hangs in the provided dependency environment; no test failure was reported.

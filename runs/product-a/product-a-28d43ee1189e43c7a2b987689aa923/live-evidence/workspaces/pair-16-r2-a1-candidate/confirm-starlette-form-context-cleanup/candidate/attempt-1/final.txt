@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added an awaitable async-context wrapper for `Request.form()`. Context exit closes all parsed uploads, including when the body raises. Added regression coverage for direct await and exceptional cleanup.
+
+Verification: diff checks passed; focused pytest was unavailable via `uv`, and the configured fallback timed out after 60 seconds without output.

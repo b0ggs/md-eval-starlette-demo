@@ -1,0 +1,8 @@
+Implemented the compression negotiation fix.
+
+- Eligible identity responses now include `Vary: Accept-Encoding` without altering body bytes or content encoding.
+- Below-threshold, pre-encoded, and excluded responses remain unchanged.
+- Streaming identity responses preserve all body and completion events.
+- Added regression tests in [test_gzip.py](/workspace/tests/middleware/test_gzip.py).
+
+Direct ASGI and HTTP integration checks passed. The pytest suite collects successfully but TestClient hangs on an unchanged baseline gzip test in this environment.

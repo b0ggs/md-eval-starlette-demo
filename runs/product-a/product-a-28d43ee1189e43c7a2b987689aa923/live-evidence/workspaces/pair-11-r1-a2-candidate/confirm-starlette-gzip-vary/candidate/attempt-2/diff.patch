@@ -1,0 +1,103 @@
+diff --git a/starlette/middleware/gzip.py b/starlette/middleware/gzip.py
+index fc63e91..a200497 100644
+--- a/starlette/middleware/gzip.py
++++ b/starlette/middleware/gzip.py
+@@ -19,11 +19,48 @@ class GZipMiddleware:
+             headers = Headers(scope=scope)
+             if "gzip" in headers.get("Accept-Encoding", ""):
+                 responder = GZipResponder(self.app, self.minimum_size, compresslevel=self.compresslevel)
+-                await responder(scope, receive, send)
+-                return
++            else:
++                responder = IdentityResponder(self.app, self.minimum_size)
++            await responder(scope, receive, send)
++            return
+         await self.app(scope, receive, send)
+ 
+ 
++class IdentityResponder:
++    def __init__(self, app: ASGIApp, minimum_size: int) -> None:
++        self.app = app
++        self.minimum_size = minimum_size
++        self.send: Send = unattached_send
++        self.initial_message: Message = {}
++        self.started = False
++        self.content_encoding_set = False
++        self.content_type_is_excluded = False
++
++    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
++        self.send = send
++        await self.app(scope, receive, self.send_with_identity)
++
++    async def send_with_identity(self, message: Message) -> None:
++        message_type = message["type"]
++        if message_type == "http.response.start":
++            self.initial_message = message
++            headers = Headers(raw=self.initial_message["headers"])
++            self.content_encoding_set = "content-encoding" in headers
++            self.content_type_is_excluded = headers.get("content-type", "").startswith(DEFAULT_EXCLUDED_CONTENT_TYPES)
++        elif message_type == "http.response.body" and not self.started:
++            self.started = True
++            body = message.get("body", b"")
++            more_body = message.get("more_body", False)
++            if not self.content_encoding_set and not self.content_type_is_excluded:
++                if len(body) >= self.minimum_size or more_body:
++                    headers = MutableHeaders(raw=self.initial_message["headers"])
++                    headers.add_vary_header("Accept-Encoding")
++            await self.send(self.initial_message)
++            await self.send(message)
++        elif message_type == "http.response.body":  # pragma: no branch
++            await self.send(message)
++
++
+ class GZipResponder:
+     def __init__(self, app: ASGIApp, minimum_size: int, compresslevel: int = 9) -> None:
+         self.app = app
+diff --git a/tests/middleware/test_gzip.py b/tests/middleware/test_gzip.py
+index 38a4e1e..cf60092 100644
+--- a/tests/middleware/test_gzip.py
++++ b/tests/middleware/test_gzip.py
+@@ -39,6 +39,7 @@ def test_gzip_not_in_accept_encoding(test_client_factory: TestClientFactory) ->
+     assert response.text == "x" * 4000
+     assert "Content-Encoding" not in response.headers
+     assert int(response.headers["Content-Length"]) == 4000
++    assert response.headers["Vary"] == "Accept-Encoding"
+ 
+ 
+ def test_gzip_ignored_for_small_responses(
+@@ -58,6 +59,7 @@ def test_gzip_ignored_for_small_responses(
+     assert response.text == "OK"
+     assert "Content-Encoding" not in response.headers
+     assert int(response.headers["Content-Length"]) == 2
++    assert "Vary" not in response.headers
+ 
+ 
+ def test_gzip_streaming_response(test_client_factory: TestClientFactory) -> None:
+@@ -81,6 +83,13 @@ def test_gzip_streaming_response(test_client_factory: TestClientFactory) -> None
+     assert response.headers["Content-Encoding"] == "gzip"
+     assert "Content-Length" not in response.headers
+ 
++    response = client.get("/", headers={"accept-encoding": "identity"})
++    assert response.status_code == 200
++    assert response.text == "x" * 4000
++    assert "Content-Encoding" not in response.headers
++    assert "Content-Length" not in response.headers
++    assert response.headers["Vary"] == "Accept-Encoding"
++
+ 
+ def test_gzip_ignored_for_responses_with_encoding_set(
+     test_client_factory: TestClientFactory,
+@@ -105,6 +114,13 @@ def test_gzip_ignored_for_responses_with_encoding_set(
+     assert response.headers["Content-Encoding"] == "text"
+     assert "Content-Length" not in response.headers
+ 
++    response = client.get("/", headers={"accept-encoding": "identity"})
++    assert response.status_code == 200
++    assert response.text == "x" * 4000
++    assert response.headers["Content-Encoding"] == "text"
++    assert "Content-Length" not in response.headers
++    assert "Vary" not in response.headers
++
+ 
+ def test_gzip_ignored_on_server_sent_events(test_client_factory: TestClientFactory) -> None:
+     def homepage(request: Request) -> StreamingResponse:

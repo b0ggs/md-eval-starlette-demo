@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Session cookies now persist only changed data, and session access adds `Cookie` to `Vary` while preserving existing values. Focused tests were added.
+
+Verification was inconclusive: `uv` was unavailable, and the bounded Python pytest run did not complete.

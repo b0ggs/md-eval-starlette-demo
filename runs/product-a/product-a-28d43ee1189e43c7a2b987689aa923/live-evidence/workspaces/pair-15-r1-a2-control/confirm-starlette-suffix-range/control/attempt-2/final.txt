@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix ranges to byte zero in [responses.py](/workspace/starlette/responses.py:516) and added a regression test in [test_responses.py](/workspace/tests/test_responses.py:941).
+
+Direct ASGI verification and syntax/diff checks passed. Pytest stalled on this environment’s AnyIO file operations; Ruff is unavailable.

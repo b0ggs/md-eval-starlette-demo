@@ -1,0 +1,187 @@
+diff --git a/starlette/middleware/gzip.py b/starlette/middleware/gzip.py
+index fc63e91..1a6c524 100644
+--- a/starlette/middleware/gzip.py
++++ b/starlette/middleware/gzip.py
+@@ -17,15 +17,20 @@ class GZipMiddleware:
+     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+         if scope["type"] == "http":  # pragma: no branch
+             headers = Headers(scope=scope)
++            responder: IdentityResponder
+             if "gzip" in headers.get("Accept-Encoding", ""):
+                 responder = GZipResponder(self.app, self.minimum_size, compresslevel=self.compresslevel)
+-                await responder(scope, receive, send)
+-                return
++            else:
++                responder = IdentityResponder(self.app, self.minimum_size)
++            await responder(scope, receive, send)
++            return
+         await self.app(scope, receive, send)
+ 
+ 
+-class GZipResponder:
+-    def __init__(self, app: ASGIApp, minimum_size: int, compresslevel: int = 9) -> None:
++class IdentityResponder:
++    content_encoding: str | None = None
++
++    def __init__(self, app: ASGIApp, minimum_size: int) -> None:
+         self.app = app
+         self.minimum_size = minimum_size
+         self.send: Send = unattached_send
+@@ -33,15 +38,12 @@ class GZipResponder:
+         self.started = False
+         self.content_encoding_set = False
+         self.content_type_is_excluded = False
+-        self.gzip_buffer = io.BytesIO()
+-        self.gzip_file = gzip.GzipFile(mode="wb", fileobj=self.gzip_buffer, compresslevel=compresslevel)
+ 
+     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+         self.send = send
+-        with self.gzip_buffer, self.gzip_file:
+-            await self.app(scope, receive, self.send_with_gzip)
++        await self.app(scope, receive, self.send_with_compression)
+ 
+-    async def send_with_gzip(self, message: Message) -> None:
++    async def send_with_compression(self, message: Message) -> None:
+         message_type = message["type"]
+         if message_type == "http.response.start":
+             # Don't send the initial message until we've determined how to
+@@ -64,48 +66,60 @@ class GZipResponder:
+                 await self.send(self.initial_message)
+                 await self.send(message)
+             elif not more_body:
+-                # Standard GZip response.
+-                self.gzip_file.write(body)
+-                self.gzip_file.close()
+-                body = self.gzip_buffer.getvalue()
+-
++                body = self.apply_compression(body, more_body=False)
+                 headers = MutableHeaders(raw=self.initial_message["headers"])
+-                headers["Content-Encoding"] = "gzip"
+-                headers["Content-Length"] = str(len(body))
++                if self.content_encoding is not None:
++                    headers["Content-Encoding"] = self.content_encoding
++                    headers["Content-Length"] = str(len(body))
+                 headers.add_vary_header("Accept-Encoding")
+                 message["body"] = body
+ 
+                 await self.send(self.initial_message)
+                 await self.send(message)
+             else:
+-                # Initial body in streaming GZip response.
++                body = self.apply_compression(body, more_body=True)
+                 headers = MutableHeaders(raw=self.initial_message["headers"])
+-                headers["Content-Encoding"] = "gzip"
++                if self.content_encoding is not None:
++                    headers["Content-Encoding"] = self.content_encoding
++                    del headers["Content-Length"]
+                 headers.add_vary_header("Accept-Encoding")
+-                del headers["Content-Length"]
+-
+-                self.gzip_file.write(body)
+-                message["body"] = self.gzip_buffer.getvalue()
+-                self.gzip_buffer.seek(0)
+-                self.gzip_buffer.truncate()
++                message["body"] = body
+ 
+                 await self.send(self.initial_message)
+                 await self.send(message)
+ 
+         elif message_type == "http.response.body":  # pragma: no branch
+-            # Remaining body in streaming GZip response.
+             body = message.get("body", b"")
+             more_body = message.get("more_body", False)
++            message["body"] = self.apply_compression(body, more_body=more_body)
+ 
+-            self.gzip_file.write(body)
+-            if not more_body:
+-                self.gzip_file.close()
++            await self.send(message)
+ 
+-            message["body"] = self.gzip_buffer.getvalue()
+-            self.gzip_buffer.seek(0)
+-            self.gzip_buffer.truncate()
++    def apply_compression(self, body: bytes, *, more_body: bool) -> bytes:
++        return body
+ 
+-            await self.send(message)
++
++class GZipResponder(IdentityResponder):
++    content_encoding = "gzip"
++
++    def __init__(self, app: ASGIApp, minimum_size: int, compresslevel: int = 9) -> None:
++        super().__init__(app, minimum_size)
++        self.gzip_buffer = io.BytesIO()
++        self.gzip_file = gzip.GzipFile(mode="wb", fileobj=self.gzip_buffer, compresslevel=compresslevel)
++
++    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
++        with self.gzip_buffer, self.gzip_file:
++            await super().__call__(scope, receive, send)
++
++    def apply_compression(self, body: bytes, *, more_body: bool) -> bytes:
++        self.gzip_file.write(body)
++        if not more_body:
++            self.gzip_file.close()
++
++        body = self.gzip_buffer.getvalue()
++        self.gzip_buffer.seek(0)
++        self.gzip_buffer.truncate()
++        return body
+ 
+ 
+ async def unattached_send(message: Message) -> typing.NoReturn:
+diff --git a/tests/middleware/test_gzip.py b/tests/middleware/test_gzip.py
+index 38a4e1e..72170f0 100644
+--- a/tests/middleware/test_gzip.py
++++ b/tests/middleware/test_gzip.py
+@@ -22,6 +22,7 @@ def test_gzip_responses(test_client_factory: TestClientFactory) -> None:
+     assert response.text == "x" * 4000
+     assert response.headers["Content-Encoding"] == "gzip"
+     assert int(response.headers["Content-Length"]) < 4000
++    assert response.headers["Vary"] == "Accept-Encoding"
+ 
+ 
+ def test_gzip_not_in_accept_encoding(test_client_factory: TestClientFactory) -> None:
+@@ -39,6 +40,7 @@ def test_gzip_not_in_accept_encoding(test_client_factory: TestClientFactory) ->
+     assert response.text == "x" * 4000
+     assert "Content-Encoding" not in response.headers
+     assert int(response.headers["Content-Length"]) == 4000
++    assert response.headers["Vary"] == "Accept-Encoding"
+ 
+ 
+ def test_gzip_ignored_for_small_responses(
+@@ -58,6 +60,7 @@ def test_gzip_ignored_for_small_responses(
+     assert response.text == "OK"
+     assert "Content-Encoding" not in response.headers
+     assert int(response.headers["Content-Length"]) == 2
++    assert "Vary" not in response.headers
+ 
+ 
+ def test_gzip_streaming_response(test_client_factory: TestClientFactory) -> None:
+@@ -82,6 +85,27 @@ def test_gzip_streaming_response(test_client_factory: TestClientFactory) -> None
+     assert "Content-Length" not in response.headers
+ 
+ 
++def test_identity_streaming_response(test_client_factory: TestClientFactory) -> None:
++    def homepage(request: Request) -> StreamingResponse:
++        async def generator() -> ContentStream:
++            yield b"x" * 400
++            yield b"y" * 400
++
++        return StreamingResponse(generator(), status_code=200)
++
++    app = Starlette(
++        routes=[Route("/", endpoint=homepage)],
++        middleware=[Middleware(GZipMiddleware)],
++    )
++
++    client = test_client_factory(app)
++    response = client.get("/", headers={"accept-encoding": "identity"})
++    assert response.status_code == 200
++    assert response.content == b"x" * 400 + b"y" * 400
++    assert "Content-Encoding" not in response.headers
++    assert response.headers["Vary"] == "Accept-Encoding"
++
++
+ def test_gzip_ignored_for_responses_with_encoding_set(
+     test_client_factory: TestClientFactory,
+ ) -> None:

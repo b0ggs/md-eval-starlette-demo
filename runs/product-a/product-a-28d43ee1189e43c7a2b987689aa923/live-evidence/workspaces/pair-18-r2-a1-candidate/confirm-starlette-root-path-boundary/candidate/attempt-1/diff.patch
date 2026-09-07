@@ -1,0 +1,113 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 90bd346..4f8ec2c 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -2,7 +2,6 @@ from __future__ import annotations
+ 
+ import asyncio
+ import functools
+-import re
+ import sys
+ import typing
+ from contextlib import contextmanager
+@@ -85,5 +84,14 @@ def collapse_excgroups() -> typing.Generator[None, None, None]:
+ 
+ def get_route_path(scope: Scope) -> str:
+     root_path = scope.get("root_path", "")
+-    route_path = re.sub(r"^" + root_path, "", scope["path"])
++    route_path = scope["path"]
++    if not route_path.startswith(root_path):
++        return route_path
++
++    if route_path == root_path:
++        return ""
++
++    if route_path[len(root_path)] == "/":
++        return route_path[len(root_path) :]
++
+     return route_path
+diff --git a/tests/test__utils.py b/tests/test__utils.py
+index 2ecf474..02f78fd 100644
+--- a/tests/test__utils.py
++++ b/tests/test__utils.py
+@@ -1,7 +1,14 @@
+ import functools
+ from typing import Any
+ 
+-from starlette._utils import is_async_callable
++from starlette._utils import get_route_path, is_async_callable
++
++
++def test_get_route_path() -> None:
++    assert get_route_path({"path": "/root/path", "root_path": "/root"}) == "/path"
++    assert get_route_path({"path": "/root", "root_path": "/root"}) == ""
++    assert get_route_path({"path": "/root-queue/path", "root_path": "/root"}) == "/root-queue/path"
++    assert get_route_path({"path": "/path", "root_path": "/root"}) == "/path"
+ 
+ 
+ def test_async_func() -> None:
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index 9fa44de..68e7ed6 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException
+ from starlette.middleware import Middleware
+ from starlette.requests import Request
+ from starlette.responses import JSONResponse, PlainTextResponse, Response
+-from starlette.routing import Host, Mount, NoMatchFound, Route, Router, WebSocketRoute
++from starlette.routing import Host, Match, Mount, NoMatchFound, Route, Router, WebSocketRoute
+ from starlette.testclient import TestClient
+ from starlette.types import ASGIApp, Message, Receive, Scope, Send
+ from starlette.websockets import WebSocket, WebSocketDisconnect
+@@ -1266,3 +1266,12 @@ def test_paths_with_root_path(test_client_factory: TestClientFactory) -> None:
+         "path": "/root/sub/path",
+         "root_path": "/root/sub",
+     }
++
++
++def test_path_with_root_path_prefix() -> None:
++    route = Route("/root-queue/path", endpoint=homepage)
++    scope: Scope = {"type": "http", "path": "/root-queue/path", "root_path": "/root", "method": "GET"}
++
++    match, _ = route.matches(scope)
++
++    assert match == Match.FULL
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,5 @@
++[
++  "tests/test__utils.py::test_get_route_path",
++  "tests/test_routing.py::test_path_with_root_path_prefix",
++  "tests/test_routing.py::test_url_for_with_double_mount"
++]

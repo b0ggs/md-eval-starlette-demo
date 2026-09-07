@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated multipart byte-range responses to:
+
+- Use CRLF framing throughout.
+- Emit the terminal boundary without an extra newline.
+- Calculate exact `Content-Length` for GET and HEAD.
+- Add regression coverage for MIME parsing, reordered ranges, and small chunks.
+
+Direct ASGI and length-matrix verification passed. Native pytest was blocked by an environment-wide async I/O hang.

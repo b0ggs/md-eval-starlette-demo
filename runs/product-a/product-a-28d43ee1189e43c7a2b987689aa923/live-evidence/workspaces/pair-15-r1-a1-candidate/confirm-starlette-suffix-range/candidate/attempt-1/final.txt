@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix byte ranges to start at byte zero and added regression coverage for `206`, full content, `Content-Range`, and `Content-Length`.
+
+Verification gap: focused pytest timed out after 30 seconds without output; `uv` was unavailable.

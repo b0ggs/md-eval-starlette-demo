@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added strict shared Host authority parsing across URL construction, Host routing, TrustedHostMiddleware, and HTTPS redirects. IPv6 fallbacks are bracketed, ports handled per contract, and invalid redirects return 400.
+
+Verification: 15 focused tests passed plus direct ASGI contract checks. `diff --check` passed.

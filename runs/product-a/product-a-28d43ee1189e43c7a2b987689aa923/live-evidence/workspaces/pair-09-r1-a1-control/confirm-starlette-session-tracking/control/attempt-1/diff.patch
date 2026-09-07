@@ -1,0 +1,123 @@
+diff --git a/starlette/middleware/sessions.py b/starlette/middleware/sessions.py
+index 1b95db4..322f0f3 100644
+--- a/starlette/middleware/sessions.py
++++ b/starlette/middleware/sessions.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import json
+ from base64 import b64decode, b64encode
++from copy import deepcopy
+ from typing import Literal
+ 
+ import itsdangerous
+@@ -41,26 +42,30 @@ class SessionMiddleware:
+             return
+ 
+         connection = HTTPConnection(scope)
+-        initial_session_was_empty = True
+ 
+         if self.session_cookie in connection.cookies:
+             data = connection.cookies[self.session_cookie].encode("utf-8")
+             try:
+                 data = self.signer.unsign(data, max_age=self.max_age)
+                 scope["session"] = json.loads(b64decode(data))
+-                initial_session_was_empty = False
+             except BadSignature:
+                 scope["session"] = {}
+         else:
+             scope["session"] = {}
+ 
++        initial_session = deepcopy(scope["session"])
++        scope["session_accessed"] = False
++
+         async def send_wrapper(message: Message) -> None:
+             if message["type"] == "http.response.start":
+-                if scope["session"]:
++                headers = MutableHeaders(scope=message)
++                if scope["session_accessed"]:
++                    headers.add_vary_header("Cookie")
++
++                if scope["session"] != initial_session and scope["session"]:
+                     # We have session data to persist.
+                     data = b64encode(json.dumps(scope["session"]).encode("utf-8"))
+                     data = self.signer.sign(data)
+-                    headers = MutableHeaders(scope=message)
+                     header_value = "{session_cookie}={data}; path={path}; {max_age}{security_flags}".format(
+                         session_cookie=self.session_cookie,
+                         data=data.decode("utf-8"),
+@@ -69,9 +74,8 @@ class SessionMiddleware:
+                         security_flags=self.security_flags,
+                     )
+                     headers.append("Set-Cookie", header_value)
+-                elif not initial_session_was_empty:
++                elif scope["session"] != initial_session:
+                     # The session has been cleared.
+-                    headers = MutableHeaders(scope=message)
+                     header_value = "{session_cookie}={data}; path={path}; {expires}{security_flags}".format(
+                         session_cookie=self.session_cookie,
+                         data="null",
+diff --git a/starlette/requests.py b/starlette/requests.py
+index 716f293..81152ca 100644
+--- a/starlette/requests.py
++++ b/starlette/requests.py
+@@ -167,6 +167,7 @@ class HTTPConnection(Mapping[str, Any], Generic[StateT]):
+     @property
+     def session(self) -> dict[str, Any]:
+         assert "session" in self.scope, "SessionMiddleware must be installed to access request.session"
++        self.scope["session_accessed"] = True
+         return self.scope["session"]  # type: ignore[no-any-return]
+ 
+     @property
+diff --git a/tests/middleware/test_session.py b/tests/middleware/test_session.py
+index b4f3c64..df3d9d2 100644
+--- a/tests/middleware/test_session.py
++++ b/tests/middleware/test_session.py
+@@ -14,6 +14,10 @@ def view_session(request: Request) -> JSONResponse:
+     return JSONResponse({"session": request.session})
+ 
+ 
++def view_session_with_vary(request: Request) -> JSONResponse:
++    return JSONResponse({"session": request.session}, headers={"Vary": "Accept-Encoding"})
++
++
+ async def update_session(request: Request) -> JSONResponse:
+     data = await request.json()
+     request.session.update(data)
+@@ -29,6 +33,7 @@ def test_session(test_client_factory: TestClientFactory) -> None:
+     app = Starlette(
+         routes=[
+             Route("/view_session", endpoint=view_session),
++            Route("/view_session_with_vary", endpoint=view_session_with_vary),
+             Route("/update_session", endpoint=update_session, methods=["POST"]),
+             Route("/clear_session", endpoint=clear_session, methods=["POST"]),
+         ],
+@@ -38,9 +43,12 @@ def test_session(test_client_factory: TestClientFactory) -> None:
+ 
+     response = client.get("/view_session")
+     assert response.json() == {"session": {}}
++    assert response.headers["vary"] == "Cookie"
++    assert "set-cookie" not in response.headers
+ 
+     response = client.post("/update_session", json={"some": "data"})
+     assert response.json() == {"session": {"some": "data"}}
++    assert response.headers["vary"] == "Cookie"
+ 
+     # check cookie max-age
+     set_cookie = response.headers["set-cookie"]
+@@ -50,9 +58,16 @@ def test_session(test_client_factory: TestClientFactory) -> None:
+ 
+     response = client.get("/view_session")
+     assert response.json() == {"session": {"some": "data"}}
++    assert response.headers["vary"] == "Cookie"
++    assert "set-cookie" not in response.headers
++
++    response = client.get("/view_session_with_vary")
++    assert response.headers["vary"] == "Accept-Encoding, Cookie"
++    assert "set-cookie" not in response.headers
+ 
+     response = client.post("/clear_session")
+     assert response.json() == {"session": {}}
++    assert "set-cookie" in response.headers
+ 
+     response = client.get("/view_session")
+     assert response.json() == {"session": {}}

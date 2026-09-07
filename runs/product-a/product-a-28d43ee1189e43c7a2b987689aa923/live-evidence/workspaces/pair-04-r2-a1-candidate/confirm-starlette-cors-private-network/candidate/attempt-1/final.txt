@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to `CORSMiddleware`.
+
+- Opted-in private-network preflights return 200 with `Access-Control-Allow-Private-Network: true`.
+- Default behavior returns 400 without that header.
+- Added regression coverage and documentation.
+
+Verification gap: `uv` was unavailable, and the configured pytest command timed out without output.

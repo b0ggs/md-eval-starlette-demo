@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to re-raise downstream background-task exceptions after its task group completes. Added a regression test.
+
+Validation: 4 targeted asyncio tests passed, stacked middleware propagation passed, compilation and diff checks passed. Trio was unavailable due sandbox socket restrictions.

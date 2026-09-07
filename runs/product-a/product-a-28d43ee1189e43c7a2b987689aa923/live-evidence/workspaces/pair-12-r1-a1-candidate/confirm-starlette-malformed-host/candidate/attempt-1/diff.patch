@@ -1,0 +1,434 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index c50ebec..3d204c3 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import functools
++import ipaddress
+ import re
+ import sys
+ from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+@@ -31,8 +32,8 @@ if sys.version_info < (3, 11):  # pragma: no cover
+ T = TypeVar("T")
+ AwaitableCallable = Callable[..., Awaitable[T]]
+ 
+-# Reject characters that could make a Host header change the URL path or authority.
+-_HOST_RE = re.compile(r"^([a-z0-9._~%!$&'()*+,;=-]+|\[[a-f0-9]*:[a-f0-9.:]+\])(?::[0-9]+)?$", re.IGNORECASE)
++_REG_NAME_RE = re.compile(r"(?:[a-z0-9._~!$&'()*+,;=-]|%[a-f0-9]{2})+", re.IGNORECASE)
++_IPV_FUTURE_RE = re.compile(r"v[a-f0-9]+\.[a-z0-9._~!$&'()*+,;=:-]+", re.IGNORECASE)
+ 
+ 
+ @overload
+@@ -97,14 +98,68 @@ async def create_collapsing_task_group() -> AsyncGenerator[anyio.abc.TaskGroup,
+         raise exc from exc.__cause__ or context
+ 
+ 
+-def parse_host_header(host_header: str) -> str | None:
++def parse_host_header(host_header: str, *, allow_out_of_range_port: bool = False) -> str | None:
+     """Parse `host_header` into its host component.
+ 
+     The result excludes the port and preserves brackets around IPv6 addresses.
+     Invalid headers produce `None`.
+     """
+-    match = _HOST_RE.fullmatch(host_header)
+-    return match.group(1) if match is not None else None
++    if host_header.startswith("["):
++        closing_bracket = host_header.find("]")
++        if closing_bracket == -1:
++            return None
++        host = host_header[: closing_bracket + 1]
++        literal = host[1:-1]
++        remainder = host_header[closing_bracket + 1 :]
++        if "%" in literal:
++            return None
++        if _IPV_FUTURE_RE.fullmatch(literal) is None:
++            try:
++                ipaddress.IPv6Address(literal)
++            except ipaddress.AddressValueError:
++                return None
++    else:
++        if "[" in host_header or "]" in host_header or host_header.count(":") > 1:
++            return None
++        host, separator, port = host_header.partition(":")
++        remainder = separator + port
++        if _REG_NAME_RE.fullmatch(host) is None:
++            return None
++
++    if not remainder:
++        return host
++    if not remainder.startswith(":") or re.fullmatch(r"[0-9]+", remainder[1:]) is None:
++        return None
++
++    port = remainder[1:].lstrip("0")
++    if not allow_out_of_range_port and (len(port) > 5 or len(port) == 5 and port > "65535"):
++        return None
++    return host
++
++
++def get_server_authority(scope: Scope) -> str | None:
++    server = scope.get("server")
++    if server is None:
++        return None
++
++    try:
++        host, port = server
++    except (TypeError, ValueError):
++        return None
++    if not isinstance(host, str) or not isinstance(port, int) or isinstance(port, bool) or not 0 <= port <= 65535:
++        return None
++
++    if ":" in host and not host.startswith("["):
++        try:
++            ipaddress.IPv6Address(host)
++        except ipaddress.AddressValueError:
++            return None
++        host = f"[{host}]"
++    elif parse_host_header(host) != host:
++        return None
++
++    default_port = {"http": 80, "https": 443, "ws": 80, "wss": 443}[scope.get("scheme", "http")]
++    return host if port == default_port else f"{host}:{port}"
+ 
+ 
+ def get_route_path(scope: Scope) -> str:
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index 01d49d5..8cbfd61 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -5,7 +5,7 @@ from shlex import shlex
+ from typing import Any, BinaryIO, Literal, NamedTuple, TypeVar, cast
+ from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
+ 
+-from starlette._utils import parse_host_header
++from starlette._utils import get_server_authority, parse_host_header
+ from starlette.concurrency import run_in_threadpool
+ from starlette.types import Scope
+ 
+@@ -45,12 +45,8 @@ class URL:
+ 
+             if host_header is not None and parse_host_header(host_header) is not None:
+                 netloc = host_header
+-            elif server is not None:
+-                host, port = server
+-                default_port = {"http": 80, "https": 443, "ws": 80, "wss": 443}[scheme]
+-                netloc = host if port == default_port else f"{host}:{port}"
+             else:
+-                netloc = None
++                netloc = get_server_authority(scope) if server is not None else None
+ 
+             query = query_string.decode()
+             if netloc is not None:
+diff --git a/starlette/middleware/httpsredirect.py b/starlette/middleware/httpsredirect.py
+index a835906..bf6f31d 100644
+--- a/starlette/middleware/httpsredirect.py
++++ b/starlette/middleware/httpsredirect.py
+@@ -1,5 +1,6 @@
++from starlette._utils import parse_host_header
+ from starlette.datastructures import URL
+-from starlette.responses import RedirectResponse
++from starlette.responses import PlainTextResponse, RedirectResponse
+ from starlette.types import ASGIApp, Receive, Scope, Send
+ 
+ 
+@@ -10,8 +11,14 @@ class HTTPSRedirectMiddleware:
+     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+         if scope["type"] in ("http", "websocket") and scope["scheme"] in ("http", "ws"):
+             url = URL(scope=scope)
++            if not url.netloc:
++                response = PlainTextResponse("Invalid host header", status_code=400)
++                await response(scope, receive, send)
++                return
+             redirect_scheme = {"http": "https", "ws": "wss"}[url.scheme]
+-            netloc = url.hostname if url.port in (80, 443) else url.netloc
++            host = parse_host_header(url.netloc)
++            assert host is not None
++            netloc = host if url.port in (80, 443) else url.netloc
+             url = url.replace(scheme=redirect_scheme, netloc=netloc)
+             response = RedirectResponse(url, status_code=307)
+             await response(scope, receive, send)
+diff --git a/starlette/middleware/trustedhost.py b/starlette/middleware/trustedhost.py
+index cccdfd2..ce8ca1a 100644
+--- a/starlette/middleware/trustedhost.py
++++ b/starlette/middleware/trustedhost.py
+@@ -30,7 +30,7 @@ class TrustedHostMiddleware:
+         self.www_redirect = www_redirect
+ 
+     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+-        if self.allow_any or scope["type"] not in (
++        if scope["type"] not in (
+             "http",
+             "websocket",
+         ):  # pragma: no cover
+@@ -38,11 +38,15 @@ class TrustedHostMiddleware:
+             return
+ 
+         headers = Headers(scope=scope)
+-        host = parse_host_header(headers.get("host", ""))
++        host = parse_host_header(headers.get("host", ""), allow_out_of_range_port=True)
+         if host is None:
+             await PlainTextResponse("Invalid host header", status_code=400)(scope, receive, send)
+             return
+ 
++        if self.allow_any:
++            await self.app(scope, receive, send)
++            return
++
+         is_valid_host = False
+         found_www_redirect = False
+         for pattern in self.allowed_hosts:
+diff --git a/starlette/routing.py b/starlette/routing.py
+index 9795f4e..c6ae134 100644
+--- a/starlette/routing.py
++++ b/starlette/routing.py
+@@ -14,7 +14,7 @@ from re import Pattern
+ from typing import Any, TypeVar
+ 
+ from starlette._exception_handler import wrap_app_handling_exceptions
+-from starlette._utils import get_route_path, is_async_callable
++from starlette._utils import get_route_path, is_async_callable, parse_host_header
+ from starlette.concurrency import run_in_threadpool
+ from starlette.convertors import CONVERTOR_TYPES, Convertor
+ from starlette.datastructures import URL, Headers, URLPath
+@@ -154,7 +154,11 @@ def compile_path(
+ 
+     if is_host:
+         # Align with `Host.matches()` behavior, which ignores port.
+-        hostname = path[idx:].split(":")[0]
++        hostname = path[idx:]
++        if hostname.startswith("["):
++            hostname = hostname.partition("]")[0] + "]"
++        else:
++            hostname = hostname.split(":")[0]
+         path_regex += re.escape(hostname) + "$"
+     else:
+         path_regex += re.escape(path[idx:]) + "$"
+@@ -478,7 +482,9 @@ class Host(BaseRoute):
+     def matches(self, scope: Scope) -> tuple[Match, Scope]:
+         if scope["type"] in ("http", "websocket"):  # pragma:no branch
+             headers = Headers(scope=scope)
+-            host = headers.get("host", "").split(":")[0]
++            host = parse_host_header(headers.get("host", ""), allow_out_of_range_port=True)
++            if host is None:
++                return Match.NONE, {}
+             match = self.host_regex.match(host)
+             if match:
+                 matched_params = match.groupdict()
+diff --git a/tests/middleware/test_https_redirect.py b/tests/middleware/test_https_redirect.py
+index 66014e7..3a5d47d 100644
+--- a/tests/middleware/test_https_redirect.py
++++ b/tests/middleware/test_https_redirect.py
+@@ -4,6 +4,7 @@ from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+ from starlette.requests import Request
+ from starlette.responses import PlainTextResponse
+ from starlette.routing import Route
++from starlette.types import Receive, Scope, Send
+ from tests.types import TestClientFactory
+ 
+ 
+@@ -39,3 +40,29 @@ def test_https_redirect_middleware(test_client_factory: TestClientFactory) -> No
+     response = client.get("/", follow_redirects=False)
+     assert response.status_code == 307
+     assert response.headers["location"] == "https://testserver:123/"
++
++
++def test_https_redirect_uses_valid_authority(test_client_factory: TestClientFactory) -> None:
++    app = Starlette(middleware=[Middleware(HTTPSRedirectMiddleware)])
++
++    response = test_client_factory(app).get("/", headers={"host": "bad/host"}, follow_redirects=False)
++    assert response.headers["location"] == "https://testserver/"
++
++    response = test_client_factory(app).get("/", headers={"host": "example.com:00080"}, follow_redirects=False)
++    assert response.headers["location"] == "https://example.com/"
++
++    client = test_client_factory(app, base_url="http://[::1]")
++    response = client.get("/", headers={"host": "bad/host"}, follow_redirects=False)
++    assert response.headers["location"] == "https://[::1]/"
++
++
++def test_https_redirect_without_valid_authority_returns_400(test_client_factory: TestClientFactory) -> None:
++    redirect = HTTPSRedirectMiddleware(PlainTextResponse("OK"))
++
++    async def app(scope: Scope, receive: Receive, send: Send) -> None:
++        scope["server"] = None
++        await redirect(scope, receive, send)
++
++    response = test_client_factory(app).get("/", headers={"host": "bad/host"}, follow_redirects=False)
++    assert response.status_code == 400
++    assert response.text == "Invalid host header"
+diff --git a/tests/middleware/test_trusted_host.py b/tests/middleware/test_trusted_host.py
+index 055d7dc..52c808e 100644
+--- a/tests/middleware/test_trusted_host.py
++++ b/tests/middleware/test_trusted_host.py
+@@ -38,7 +38,10 @@ def test_trusted_host_middleware(test_client_factory: TestClientFactory) -> None
+     [
+         ("[::1]", 200),
+         ("[::1]:8000", 200),
++        ("[v1.fe80]", 200),
+         ("[2001:db8::1]", 400),
++        ("[::::]", 400),
++        ("[v1.]", 400),
+         ("[::1", 400),
+         ("[::1]evil.example.com", 400),
+         ("[::1]@attacker", 400),
+@@ -47,6 +50,8 @@ def test_trusted_host_middleware(test_client_factory: TestClientFactory) -> None
+         ("[::1]:", 400),
+         ("api_service", 200),
+         ("api_service:8000", 200),
++        ("api_service:00080", 200),
++        ("api_service:99999", 200),
+         ("api_service/evil", 400),
+         ("api_service?evil", 400),
+         ("api_service#evil", 400),
+@@ -60,7 +65,9 @@ def test_trusted_host_middleware_ipv6(test_client_factory: TestClientFactory, ho
+ 
+     app = Starlette(
+         routes=[Route("/", endpoint=homepage)],
+-        middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=["[::1]", "api_service", "*.example.com"])],
++        middleware=[
++            Middleware(TrustedHostMiddleware, allowed_hosts=["[::1]", "[v1.fe80]", "api_service", "*.example.com"])
++        ],
+     )
+ 
+     client = test_client_factory(app)
+@@ -74,6 +81,13 @@ def test_default_allowed_hosts() -> None:
+     assert middleware.allowed_hosts == ["*"]
+ 
+ 
++def test_allow_any_rejects_malformed_authority(test_client_factory: TestClientFactory) -> None:
++    app = Starlette(middleware=[Middleware(TrustedHostMiddleware)])
++    response = test_client_factory(app).get("/", headers={"host": "[::::]"})
++    assert response.status_code == 400
++    assert response.text == "Invalid host header"
++
++
+ def test_www_redirect(test_client_factory: TestClientFactory) -> None:
+     def homepage(request: Request) -> PlainTextResponse:
+         return PlainTextResponse("OK", status_code=200)
+diff --git a/tests/test_datastructures.py b/tests/test_datastructures.py
+index 6240258..bf94ed4 100644
+--- a/tests/test_datastructures.py
++++ b/tests/test_datastructures.py
+@@ -196,6 +196,43 @@ def test_url_from_scope_with_invalid_host(host: bytes) -> None:
+     assert u.netloc == "example.com"
+ 
+ 
++@pytest.mark.parametrize(
++    "host",
++    [
++        pytest.param(b"example.com:", id="empty-port"),
++        pytest.param(b"example.com:65536", id="port-too-large"),
++        pytest.param(b"example.com:-1", id="negative-port"),
++        pytest.param(b"[::::]", id="invalid-ipv6"),
++        pytest.param(b"[v1.]", id="invalid-ipvfuture"),
++    ],
++)
++def test_url_from_scope_rejects_invalid_authorities(host: bytes) -> None:
++    url = URL(
++        scope={
++            "scheme": "http",
++            "server": ("::1", 8000),
++            "path": "/",
++            "query_string": b"",
++            "headers": [(b"host", host)],
++        }
++    )
++    assert str(url) == "http://[::1]:8000/"
++
++
++@pytest.mark.parametrize("host", [b"example.com:00080", b"[v1.fe80]:00080"])
++def test_url_from_scope_preserves_valid_authorities(host: bytes) -> None:
++    url = URL(
++        scope={
++            "scheme": "http",
++            "server": ("example.org", 80),
++            "path": "/",
++            "query_string": b"",
++            "headers": [(b"host", host)],
++        }
++    )
++    assert url.netloc == host.decode()
++
++
+ @pytest.mark.parametrize(
+     "path, expected_path",
+     [
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index bca758c..0dae4f8 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -15,7 +15,7 @@ from starlette.exceptions import HTTPException
+ from starlette.middleware import Middleware
+ from starlette.requests import Request
+ from starlette.responses import JSONResponse, PlainTextResponse, Response
+-from starlette.routing import Host, Mount, NoMatchFound, Route, Router, WebSocketRoute
++from starlette.routing import Host, Match, Mount, NoMatchFound, Route, Router, WebSocketRoute
+ from starlette.testclient import TestClient
+ from starlette.types import ASGIApp, Message, Receive, Scope, Send
+ from starlette.websockets import WebSocket, WebSocketDisconnect
+@@ -476,6 +476,21 @@ def test_host_routing(test_client_factory: TestClientFactory) -> None:
+     assert response.status_code == 200
+ 
+ 
++@pytest.mark.parametrize(
++    ("route_host", "request_host", "expected"),
++    [
++        ("[::1]", "[::1]:00080", Match.FULL),
++        ("[v1.fe80]", "[v1.fe80]:99999", Match.FULL),
++        ("[::1]", "[::::]", Match.NONE),
++        ("example.org", "example.org:port", Match.NONE),
++    ],
++)
++def test_host_routing_validates_authority(route_host: str, request_host: str, expected: Match) -> None:
++    route = Host(route_host, app=homepage)
++    match, _ = route.matches({"type": "http", "headers": [(b"host", request_host.encode())]})
++    assert match is expected
++
++
+ def test_host_reverse_urls() -> None:
+     assert mixed_hosts_app.url_path_for("homepage").make_absolute_url("https://whatever") == "https://www.example.org/"
+     assert (
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,3 @@
++{
++  "tests/test_routing.py": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,1 @@
++[]

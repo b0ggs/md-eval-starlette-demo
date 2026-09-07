@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated `TestClient` to:
+
+- Preserve complete `http.response.debug` info in `response.extensions`.
+- Retain `response.template` and `response.context` compatibility when both keys exist.
+- Added focused coverage for arbitrary and template debug mappings.
+
+Verification was limited: the initial run lacked `jinja2`; the corrected focused test hung and was terminated after 30 seconds.

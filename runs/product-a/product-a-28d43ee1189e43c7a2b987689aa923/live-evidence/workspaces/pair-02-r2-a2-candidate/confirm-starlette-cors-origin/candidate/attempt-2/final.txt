@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated CORS middleware to echo the request origin whenever wildcard origins and credentials are enabled, while preserving existing `Vary` values and appending `Origin`. Added focused regression coverage.
+
+`git diff --check` passed. Focused pytest runs did not return a definitive exit status within the runner window.

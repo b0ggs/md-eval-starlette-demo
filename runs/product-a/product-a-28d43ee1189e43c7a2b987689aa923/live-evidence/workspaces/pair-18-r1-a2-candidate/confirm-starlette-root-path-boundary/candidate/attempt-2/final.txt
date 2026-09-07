@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to strip `root_path` only at segment boundaries or exact matches. Added routing coverage for `/root-queue/path` with `/root`.
+
+`git diff --check` passed. Focused pytest verification was unavailable: dependency warnings blocked the first run, and the corrected retry hung and was stopped. No further equivalent tests were run per repository instructions.

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StreamingResponse` and `FileResponse` to emit valid WebSocket denial events while preserving HTTP behavior and background-task execution.
+
+Added regression tests for streamed and file denial bodies. Four focused asyncio pytest tests pass; Trio is unavailable due sandbox socket restrictions.

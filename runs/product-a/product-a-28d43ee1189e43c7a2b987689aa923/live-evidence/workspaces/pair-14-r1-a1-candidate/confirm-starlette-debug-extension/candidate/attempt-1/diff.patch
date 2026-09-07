@@ -1,0 +1,77 @@
+diff --git a/starlette/testclient.py b/starlette/testclient.py
+index 63d8790..738faeb 100644
+--- a/starlette/testclient.py
++++ b/starlette/testclient.py
+@@ -296,6 +296,7 @@ class _TestClientTransport(httpx.BaseTransport):
+         raw_kwargs: dict[str, Any] = {"stream": io.BytesIO()}
+         template = None
+         context = None
++        response_debug = None
+ 
+         async def receive() -> Message:
+             nonlocal request_complete
+@@ -326,7 +327,7 @@ class _TestClientTransport(httpx.BaseTransport):
+             return {"type": "http.request", "body": body_bytes}
+ 
+         async def send(message: Message) -> None:
+-            nonlocal raw_kwargs, response_started, template, context
++            nonlocal raw_kwargs, response_started, template, context, response_debug
+ 
+             if message["type"] == "http.response.start":
+                 assert not response_started, 'Received multiple "http.response.start" messages.'
+@@ -344,8 +345,9 @@ class _TestClientTransport(httpx.BaseTransport):
+                     raw_kwargs["stream"].seek(0)
+                     response_complete.set()
+             elif message["type"] == "http.response.debug":
+-                template = message["info"]["template"]
+-                context = message["info"]["context"]
++                response_debug = message["info"]
++                template = response_debug.get("template")
++                context = response_debug.get("context")
+ 
+         try:
+             with self.portal_factory() as portal:
+@@ -365,6 +367,8 @@ class _TestClientTransport(httpx.BaseTransport):
+             }
+ 
+         raw_kwargs["stream"] = httpx.ByteStream(raw_kwargs["stream"].read())
++        if response_debug is not None:
++            raw_kwargs["extensions"] = {"http.response.debug": response_debug}
+ 
+         response = httpx.Response(**raw_kwargs, request=request)
+         if template is not None:
+diff --git a/tests/test_testclient.py b/tests/test_testclient.py
+index b5a347c..2d1a07f 100644
+--- a/tests/test_testclient.py
++++ b/tests/test_testclient.py
+@@ -230,6 +230,30 @@ def test_testclient_asgi3(test_client_factory: TestClientFactory) -> None:
+     assert response.text == "Hello, world!"
+ 
+ 
++def test_http_response_debug(test_client_factory: TestClientFactory) -> None:
++    async def app(scope: Scope, receive: Receive, send: Send) -> None:
++        debug_info = {"custom": {"nested": True}}
++        if scope["path"] == "/template":
++            debug_info.update({"template": "index.html", "context": {"name": "World"}})
++        await send({"type": "http.response.debug", "info": debug_info})
++        await send({"type": "http.response.start", "status": 200})
++        await send({"type": "http.response.body"})
++
++    client = test_client_factory(app)
++
++    response = client.get("/")
++    assert response.extensions["http.response.debug"] == {"custom": {"nested": True}}
++
++    response = client.get("/template")
++    assert response.extensions["http.response.debug"] == {
++        "custom": {"nested": True},
++        "template": "index.html",
++        "context": {"name": "World"},
++    }
++    assert response.template == "index.html"  # type: ignore[attr-defined]
++    assert response.context == {"name": "World"}  # type: ignore[attr-defined]
++
++
+ def test_websocket_blocking_receive(test_client_factory: TestClientFactory) -> None:
+     def app(scope: Scope) -> ASGIInstance:
+         async def respond(websocket: WebSocket) -> None:

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated CORS simple responses to echo the request origin whenever wildcard origins and credentials are enabled, while preserving existing `Vary` values and appending `Origin`.
+
+Added regression coverage. Direct ASGI checks and `git diff --check` pass; pytest’s existing `TestClient` hung in this environment.

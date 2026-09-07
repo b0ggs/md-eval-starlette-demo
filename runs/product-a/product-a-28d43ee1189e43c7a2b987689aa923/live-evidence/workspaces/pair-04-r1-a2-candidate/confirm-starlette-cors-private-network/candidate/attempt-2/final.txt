@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to CORS middleware. Opted-in private-network preflights now succeed with `Access-Control-Allow-Private-Network: true`; default requests fail without that header. Added tests and documentation.
+
+Static checks passed. Focused pytest attempts timed out without output; `ruff` was unavailable.

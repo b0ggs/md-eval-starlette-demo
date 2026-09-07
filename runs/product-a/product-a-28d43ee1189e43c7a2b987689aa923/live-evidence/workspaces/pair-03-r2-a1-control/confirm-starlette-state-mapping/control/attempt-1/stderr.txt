@@ -1,0 +1,2 @@
+2026-09-06T12:22:08.442490Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /workspace/tests/test_requests.py:
+from collections.abc import Generator

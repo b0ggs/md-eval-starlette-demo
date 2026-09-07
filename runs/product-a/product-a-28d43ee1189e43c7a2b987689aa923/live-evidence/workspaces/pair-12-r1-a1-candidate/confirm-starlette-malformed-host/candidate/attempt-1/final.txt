@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added strict shared authority parsing, safe IPv6 server fallback, host matching validation, and safe HTTPS redirect handling with 400 responses when no valid authority exists. Added focused tests for R1–R3.
+
+Verification: diff checks passed; focused pytest runs made progress without failures but timed out. Ruff was unavailable, so adjacent regression coverage remains unverified.

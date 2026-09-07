@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Credentialed wildcard CORS responses now echo the request origin and append `Origin` to existing `Vary` values. Updated focused tests accordingly.
+
+Verification: `git diff --check` passed. Test execution was blocked because system `pytest` hung and the project-pinned `uv` runner is unavailable.

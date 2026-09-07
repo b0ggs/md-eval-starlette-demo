@@ -1,0 +1,4 @@
+2026-09-06T12:12:36.921350Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /workspace/tests/test__utils.py:
+    nested = functools.partial(partial, a=1)
+    assert is_async_callable(nested)
+2026-09-06T12:17:44.105769Z ERROR codex_core::tools::router: error=exec_command failed for `/usr/bin/bash -lc 'rm -rf /workspace/starlette/middleware/__pycache__ /workspace/starlette/__pycache__ /workspace/tests/__pycache__ /workspace/.pytest_cache && git -c safe.directory=/workspace status --short && git -c safe.directory=/workspace diff --check'`: CreateProcess { message: "Rejected(\"`/usr/bin/bash -lc 'rm -rf /workspace/starlette/middleware/__pycache__ /workspace/starlette/__pycache__ /workspace/tests/__pycache__ /workspace/.pytest_cache && git -c safe.directory=/workspace status --short && git -c safe.directory=/workspace diff --check'` rejected: rm -f style commands are not permitted. Use a safer approach\")" }

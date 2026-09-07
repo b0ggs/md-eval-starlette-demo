@@ -1,0 +1,6 @@
+Implemented all issue-contract requirements.
+
+- Added `allow_private_network=False` to CORS middleware.
+- Private-network preflights succeed and emit the allow header only when enabled.
+- Added regression tests and documentation.
+- ASGI verification and available tests passed. The existing TestClient suite hangs in this environment due to dependency incompatibility.

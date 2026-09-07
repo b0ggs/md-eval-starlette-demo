@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated `TestClient` to:
+
+- Expose complete debug mappings at `response.extensions["http.response.debug"]`.
+- Preserve `response.template` and `response.context` compatibility.
+- Add focused tests for both requirements.
+
+Direct transport checks and diff validation passed. Full pytest execution was limited by missing Jinja2 and sandbox restrictions affecting AnyIO backends.

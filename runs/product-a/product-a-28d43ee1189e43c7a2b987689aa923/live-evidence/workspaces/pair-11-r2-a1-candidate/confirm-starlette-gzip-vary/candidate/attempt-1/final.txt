@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated [gzip.py](/workspace/starlette/middleware/gzip.py) so eligible identity responses add `Vary: Accept-Encoding` without compression, while small and pre-encoded responses remain unchanged. Added identity streaming coverage in [test_gzip.py](/workspace/tests/middleware/test_gzip.py).
+
+`git diff --check` passed. Focused tests were attempted twice but the pytest runner hung and timed out without output.

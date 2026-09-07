@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added `WebSocketDisconnected`, preserving existing messages and exception behavior for validation and peer disconnects. Added focused regression coverage.
+
+Tests: focused and adjacent asyncio tests passed. Trio setup was blocked by sandbox socket permissions.

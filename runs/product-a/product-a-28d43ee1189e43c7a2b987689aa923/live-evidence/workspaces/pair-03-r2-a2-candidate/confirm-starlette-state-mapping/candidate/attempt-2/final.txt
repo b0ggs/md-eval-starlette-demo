@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`State` now implements `MutableMapping`, preserving attribute access and the supplied backing mapping/shared values. Added focused request-state coverage.
+
+Verification: 2 focused tests passed; diff check passed. The existing lifespan regression timed out, so the full suite was not run.

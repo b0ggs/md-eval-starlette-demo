@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated CORS middleware to:
+
+- Echo the request origin when wildcard origins and credentials are enabled, with or without cookies.
+- Preserve existing `Vary` values and append `Origin`.
+- Add focused regression coverage.
+
+Direct ASGI checks and `git diff --check` passed. Full pytest collection was limited by missing optional dependencies and an unrelated test-client hang.

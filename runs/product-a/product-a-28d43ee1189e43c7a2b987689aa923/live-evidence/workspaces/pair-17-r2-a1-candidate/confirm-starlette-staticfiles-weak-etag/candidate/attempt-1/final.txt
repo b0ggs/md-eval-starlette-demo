@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StaticFiles` ETag parsing to recognize HTAB as HTTP optional whitespace. Expanded tests for weak ETags in first, middle, and last list positions, preserving strong-tag and mismatch coverage.
+
+`git diff --check` passed. Focused pytest verification was inconclusive: the initial run hung, and the permitted retry lacked AnyIO’s fixture after plugin autoload was disabled.

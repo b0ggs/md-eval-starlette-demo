@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to preserve application exception causes/contexts while hiding internal `EndOfStream` errors from the visible chain. Added regression tests for explicit and implicit chaining.
+
+Verification: focused asyncio tests pass; visible-chain checks pass. Trio is unavailable due sandbox socket restrictions.

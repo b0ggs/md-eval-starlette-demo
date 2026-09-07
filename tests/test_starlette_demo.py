@@ -166,6 +166,34 @@ class StarletteDemoTests(unittest.TestCase):
         for attempt_id in expected:
             self.assertIn(attempt_id, self.rendered)
 
+    def test_report_is_failures_first_and_never_uses_a_lone_repeat(self) -> None:
+        self.assertLess(self.rendered.index("## Pass/fail"), self.rendered.index("## Every failure"))
+        self.assertLess(
+            self.rendered.index("## Every failure"),
+            self.rendered.index("## Complete-task analysis"),
+        )
+        self.assertIn("MD: 2/36 failed; 34/36 passed", self.rendered)
+        self.assertIn("No-MD: 2/36 failed; 34/36 passed", self.rendered)
+        self.assertIn("Eligible: **16/18 tasks**", self.rendered)
+        self.assertEqual(
+            self.data["sensitivity"]["wall"]["classification"],
+            "significantly favorable",
+        )
+        self.assertEqual(
+            self.data["sensitivity"]["token"]["classification"],
+            "significantly favorable",
+        )
+        incomplete = {
+            row["task_id"]: row for row in self.data["task_rows"]
+            if row["usable_pairs"] < 2
+        }
+        self.assertEqual(set(incomplete), {
+            "confirm-starlette-exception-context",
+            "confirm-starlette-malformed-host",
+        })
+        self.assertTrue(all(row["wall"] is None and row["token"] is None
+                            for row in incomplete.values()))
+
     def test_readme_matches_the_verified_results(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         required = (
@@ -175,15 +203,19 @@ class StarletteDemoTests(unittest.TestCase):
             "| Subject invocations | 72 |",
             "| Peak concurrency | 12 |",
             "| Replacements | 0 |",
-            "| Resolved attempts | MD 34/36; No MD 34/36 |",
-            "| Wall time | **INCONCLUSIVE** |",
-            "| Tokens | **INCONCLUSIVE** |",
+            "| Failed attempts | MD 2/36; No MD 2/36 |",
+            "| Passed attempts | MD 34/36; No MD 34/36 |",
             "41.8854%",
             "32.3133%–50.1038%",
             "1.6430678e-06",
             "33.0927%",
             "21.6050%–42.8970%",
             "7.2894331e-05",
+            "Significantly favorable",
+            "all-18 registered endpoint",
+            "was unavailable because",
+            "was not historically",
+            "preregistered; it was selected after outcomes were known",
             "finite-known-set development replication",
             "not the frozen v7 confirmation",
             "6e8e985318203f3818fefad07e3a9b43a7a9e300",

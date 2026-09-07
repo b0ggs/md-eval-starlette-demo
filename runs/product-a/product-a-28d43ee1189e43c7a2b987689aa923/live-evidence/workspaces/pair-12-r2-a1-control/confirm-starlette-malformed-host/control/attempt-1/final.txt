@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added shared strict authority parsing across scope URLs, host routing, trusted hosts, and HTTPS redirects. IPv6 fallbacks, IPvFuture, numeric ports, default-port stripping, and missing-authority 400 responses are handled.
+
+Direct edge-case checks passed. TestClient-based tests timed out due to the repository environment.

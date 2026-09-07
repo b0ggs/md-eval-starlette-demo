@@ -1,0 +1,6 @@
+Implemented root-path segment boundary handling.
+
+- `get_route_path()` now strips only exact or `/`-delimited prefixes.
+- Added unit and routing regressions for `/root-queue/path`.
+- Utility tests and direct ASGI dispatch pass.
+- `ruff` and `mypy` were unavailable; `TestClient` stalled in this environment.

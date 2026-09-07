@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated multipart byte-range responses to use standards-compliant CRLF framing and exact `Content-Length` calculations. Added coverage for MIME parsing, GET, HEAD, reordered ranges, and small streaming chunks.
+
+Focused multipart and adjacent single-range tests passed. Ruff was unavailable in the environment.

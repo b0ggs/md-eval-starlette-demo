@@ -1,0 +1,1 @@
+2026-09-06T12:20:48.519342Z ERROR codex_core::tools::router: error=write_stdin failed: Unknown process id 58228

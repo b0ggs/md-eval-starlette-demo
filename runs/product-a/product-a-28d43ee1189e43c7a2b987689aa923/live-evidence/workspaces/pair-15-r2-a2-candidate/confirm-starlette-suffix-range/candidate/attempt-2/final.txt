@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix byte ranges to byte zero and added regression coverage for `206`, full content, `Content-Range`, and `Content-Length`.
+
+`git diff --check` passed. The focused pytest test timed out twice without output, including a bounded 30-second retry.

@@ -1,0 +1,81 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 90bd346..bcd0b7c 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -2,7 +2,6 @@ from __future__ import annotations
+ 
+ import asyncio
+ import functools
+-import re
+ import sys
+ import typing
+ from contextlib import contextmanager
+@@ -84,6 +83,14 @@ def collapse_excgroups() -> typing.Generator[None, None, None]:
+ 
+ 
+ def get_route_path(scope: Scope) -> str:
++    path: str = scope["path"]
+     root_path = scope.get("root_path", "")
+-    route_path = re.sub(r"^" + root_path, "", scope["path"])
+-    return route_path
++    if not root_path:
++        return path
++    if not path.startswith(root_path):
++        return path
++    if path == root_path:
++        return ""
++    if path[len(root_path)] == "/":
++        return path[len(root_path) :]
++    return path
+diff --git a/tests/test__utils.py b/tests/test__utils.py
+index 2ecf474..7edb768 100644
+--- a/tests/test__utils.py
++++ b/tests/test__utils.py
+@@ -1,7 +1,7 @@
+ import functools
+ from typing import Any
+ 
+-from starlette._utils import is_async_callable
++from starlette._utils import get_route_path, is_async_callable
+ 
+ 
+ def test_async_func() -> None:
+@@ -78,3 +78,9 @@ def test_async_nested_partial() -> None:
+     partial = functools.partial(async_func, b=2)
+     nested_partial = functools.partial(partial, a=1)
+     assert is_async_callable(nested_partial)
++
++
++def test_get_route_path() -> None:
++    assert get_route_path({"path": "/root/path", "root_path": "/root"}) == "/path"
++    assert get_route_path({"path": "/root", "root_path": "/root"}) == ""
++    assert get_route_path({"path": "/root-queue/path", "root_path": "/root"}) == "/root-queue/path"
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index 9fa44de..49b3fbc 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -1221,6 +1221,12 @@ echo_paths_routes = [
+         name="path",
+         methods=["GET"],
+     ),
++    Route(
++        "/root-queue/path",
++        functools.partial(echo_paths, name="root-queue"),
++        name="root-queue",
++        methods=["GET"],
++    ),
+     Mount("/asgipath", app=functools.partial(pure_asgi_echo_paths, name="asgipath")),
+     Mount(
+         "/sub",
+@@ -1266,3 +1272,11 @@ def test_paths_with_root_path(test_client_factory: TestClientFactory) -> None:
+         "path": "/root/sub/path",
+         "root_path": "/root/sub",
+     }
++
++    response = client.get("/root-queue/path")
++    assert response.status_code == 200
++    assert response.json() == {
++        "name": "root-queue",
++        "path": "/root-queue/path",
++        "root_path": "/root",
++    }

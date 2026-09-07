@@ -1,0 +1,140 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 96c1be9..2739225 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -3,11 +3,11 @@ from __future__ import annotations
+ import functools
+ import re
+ import sys
+-from collections.abc import AsyncGenerator, Awaitable, Callable
++from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+ from contextlib import asynccontextmanager
+ from dataclasses import dataclass
+ from ipaddress import AddressValueError, IPv6Address
+-from typing import Any, TypeVar, overload
++from typing import Any, Generic, Protocol, TypeVar, overload
+ 
+ import anyio.abc
+ 
+@@ -33,6 +33,41 @@ if sys.version_info < (3, 11):  # pragma: no cover
+ T = TypeVar("T")
+ AwaitableCallable = Callable[..., Awaitable[T]]
+ 
++T_co = TypeVar("T_co", covariant=True)
++
++
++class AwaitableOrContextManager(Protocol[T_co]):
++    def __await__(self) -> Generator[Any, None, T_co]: ...
++
++    async def __aenter__(self) -> T_co: ...
++
++    async def __aexit__(self, *args: Any) -> bool | None: ...
++
++
++class SupportsAsyncClose(Protocol):
++    async def close(self) -> None: ...
++
++
++SupportsAsyncCloseType = TypeVar("SupportsAsyncCloseType", bound=SupportsAsyncClose)
++
++
++class AwaitableOrContextManagerWrapper(Generic[SupportsAsyncCloseType]):
++    __slots__ = ("aw", "entered")
++
++    def __init__(self, aw: Awaitable[SupportsAsyncCloseType]) -> None:
++        self.aw = aw
++
++    def __await__(self) -> Generator[Any, None, SupportsAsyncCloseType]:
++        return self.aw.__await__()
++
++    async def __aenter__(self) -> SupportsAsyncCloseType:
++        self.entered = await self.aw
++        return self.entered
++
++    async def __aexit__(self, *args: Any) -> None:
++        await self.entered.close()
++
++
+ # Reject characters that could make a Host header change the URL path or authority.
+ _HOST_RE = re.compile(
+     r"^(?P<host>[a-z0-9._~%!$&'()*+,;=-]+|\[(?:(?P<ipv6>[a-f0-9]*:[a-f0-9.:]+)|"
+diff --git a/starlette/requests.py b/starlette/requests.py
+index a14ae11..d4f3f4b 100644
+--- a/starlette/requests.py
++++ b/starlette/requests.py
+@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Generic, NoReturn, cast
+ 
+ import anyio
+ 
++from starlette._utils import AwaitableOrContextManager, AwaitableOrContextManagerWrapper
+ from starlette.datastructures import URL, Address, FormData, Headers, QueryParams, State
+ from starlette.exceptions import HTTPException
+ from starlette.formparsers import FormParser, MultiPartException, MultiPartParser
+@@ -309,14 +310,16 @@ class Request(HTTPConnection[StateT]):
+                 self._form = FormData()
+         return self._form
+ 
+-    async def form(
++    def form(
+         self,
+         *,
+         max_files: int | float = 1000,
+         max_fields: int | float = 1000,
+         max_part_size: int = 1024 * 1024,
+-    ) -> FormData:
+-        return await self._get_form(max_files=max_files, max_fields=max_fields, max_part_size=max_part_size)
++    ) -> AwaitableOrContextManager[FormData]:
++        return AwaitableOrContextManagerWrapper(
++            self._get_form(max_files=max_files, max_fields=max_fields, max_part_size=max_part_size)
++        )
+ 
+     async def close(self) -> None:
+         if self._form is not None:  # pragma: no branch
+diff --git a/tests/test_requests.py b/tests/test_requests.py
+index 028ac62..8fe9b9d 100644
+--- a/tests/test_requests.py
++++ b/tests/test_requests.py
+@@ -2,12 +2,14 @@ from __future__ import annotations
+ 
+ import sys
+ from collections.abc import Iterator
++from contextlib import nullcontext
++from io import BytesIO
+ from typing import Any
+ 
+ import anyio
+ import pytest
+ 
+-from starlette.datastructures import URL, Address, State
++from starlette.datastructures import URL, Address, FormData, State, UploadFile
+ from starlette.requests import ClientDisconnect, Request
+ from starlette.responses import JSONResponse, PlainTextResponse, Response
+ from starlette.types import Message, Receive, Scope, Send
+@@ -132,6 +134,27 @@ def test_request_form_urlencoded(test_client_factory: TestClientFactory) -> None
+     assert response.json() == {"form": {"abc": "123 @"}}
+ 
+ 
++@pytest.mark.anyio
++async def test_request_form_is_awaitable_context_manager_and_closes_uploads() -> None:
++    request = Request({"type": "http"})
++    request._form = FormData({"field": "value"})
++    assert await request.form() is request._form
++
++    for exception in (None, RuntimeError("context failed")):
++        uploads = [UploadFile(BytesIO(b"first")), UploadFile(BytesIO(b"second"))]
++        request._form = FormData([("files", upload) for upload in uploads])
++        expectation = nullcontext() if exception is None else pytest.raises(RuntimeError, match="context failed")
++
++        with expectation:
++            async with request.form() as form:
++                assert form is request._form
++                assert all(not upload.file.closed for upload in uploads)
++                if exception is not None:
++                    raise exception
++
++        assert all(upload.file.closed for upload in uploads)
++
++
+ def test_request_body_then_stream(test_client_factory: TestClientFactory) -> None:
+     async def app(scope: Scope, receive: Receive, send: Send) -> None:
+         request = Request(scope, receive)

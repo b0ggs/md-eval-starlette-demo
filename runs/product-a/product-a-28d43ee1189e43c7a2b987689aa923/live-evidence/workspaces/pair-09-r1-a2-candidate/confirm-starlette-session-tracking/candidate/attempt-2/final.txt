@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Session cookies now persist only after data changes, while session access adds `Cookie` to `Vary` without replacing existing values. Added focused regression coverage.
+
+`git diff --check` passed. The focused pytest run timed out after 30 seconds without diagnostic output.

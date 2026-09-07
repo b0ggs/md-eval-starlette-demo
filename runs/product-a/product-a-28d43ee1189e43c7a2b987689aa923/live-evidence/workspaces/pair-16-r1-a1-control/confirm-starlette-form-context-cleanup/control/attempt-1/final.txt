@@ -1,0 +1,6 @@
+Implemented R1.
+
+- `Request.form()` remains directly awaitable and now supports `async with`.
+- Context exit closes all parsed `UploadFile` instances, including when the body raises.
+- Added regression tests for normal and exceptional exits.
+- Standalone multipart checks and `git diff --check` pass. Pytest’s TestClient tests hang in this container, including unchanged baseline tests.

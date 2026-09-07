@@ -1,0 +1,6 @@
+Implemented.
+
+- Multipart byte ranges now use CRLF framing and a standards-compliant terminal boundary in [responses.py](/workspace/starlette/responses.py:442).
+- `Content-Length` is calculated from the exact emitted bytes.
+- Updated GET, HEAD, reordered-range, and small-chunk regression tests.
+- Direct ASGI/MIME parser checks passed with exact lengths. Full pytest execution was blocked by the environment hanging in `anyio.open_file`, including unchanged baseline tests.

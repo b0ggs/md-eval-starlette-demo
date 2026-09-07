@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Session cookies now emit only when data changes, including nested mutations. Session access adds `Cookie` to `Vary` while preserving existing values. Added regression tests.
+
+Direct ASGI checks and test collection passed. Runtime pytest was blocked by the repository’s `TestClient` hanging even in a minimal smoke test.

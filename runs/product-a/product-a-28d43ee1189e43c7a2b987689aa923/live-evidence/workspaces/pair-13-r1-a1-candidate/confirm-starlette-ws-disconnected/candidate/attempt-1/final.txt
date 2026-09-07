@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added `WebSocketDisconnected(RuntimeError)` and applied it to disconnected low-level operations and receive helpers while preserving existing messages and error distinctions.
+
+Focused tests: 5 passed. The adjacent TestClient regression timed out due sandbox restrictions; direct coverage passed.

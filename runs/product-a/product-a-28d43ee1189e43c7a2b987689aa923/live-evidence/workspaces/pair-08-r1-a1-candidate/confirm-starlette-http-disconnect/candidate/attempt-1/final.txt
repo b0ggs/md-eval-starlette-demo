@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated `StreamingResponse` to:
+
+- Detect ASGI HTTP spec 2.4+.
+- Translate send-side `OSError` into `ClientDisconnect`.
+- Stop consuming the body iterator without waiting on `receive`.
+- Preserve legacy receive-disconnect handling for older ASGI versions.
+
+Added focused regression coverage. Both new behavior and legacy asyncio tests pass. Trio execution was unavailable due sandbox socket restrictions.

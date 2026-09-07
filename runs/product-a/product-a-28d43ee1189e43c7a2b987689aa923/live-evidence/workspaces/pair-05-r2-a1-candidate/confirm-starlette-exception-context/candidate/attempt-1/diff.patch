@@ -1,0 +1,56 @@
+diff --git a/starlette/middleware/base.py b/starlette/middleware/base.py
+index 577918e..683be78 100644
+--- a/starlette/middleware/base.py
++++ b/starlette/middleware/base.py
+@@ -156,7 +156,7 @@ class BaseHTTPMiddleware:
+                 if app_exc is not None:
+                     nonlocal exception_already_raised
+                     exception_already_raised = True
+-                    raise app_exc
++                    raise app_exc from app_exc.__cause__ or app_exc.__context__
+                 raise RuntimeError("No response returned.")
+ 
+             assert message["type"] == "http.response.start"
+diff --git a/tests/middleware/test_base.py b/tests/middleware/test_base.py
+index d4548e6..c112298 100644
+--- a/tests/middleware/test_base.py
++++ b/tests/middleware/test_base.py
+@@ -342,6 +342,38 @@ def test_exception_can_be_caught(test_client_factory: TestClientFactory) -> None
+     assert response.text == "TEST"
+ 
+ 
++@pytest.mark.parametrize("chain_type", ["cause", "context"])
++def test_application_exception_chain_is_preserved(
++    test_client_factory: TestClientFactory,
++    chain_type: str,
++) -> None:
++    original_exc = ValueError("original")
++
++    async def error_endpoint(_: Request) -> None:
++        if chain_type == "cause":
++            raise RuntimeError("application") from original_exc
++
++        try:
++            raise original_exc
++        except ValueError:
++            raise RuntimeError("application")
++
++    async def passthrough(request: Request, call_next: RequestResponseEndpoint) -> Response:
++        return await call_next(request)
++
++    app = Starlette(
++        middleware=[Middleware(BaseHTTPMiddleware, dispatch=passthrough)],
++        routes=[Route("/", error_endpoint)],
++    )
++
++    client = test_client_factory(app)
++    with pytest.raises(RuntimeError, match="application") as exc_info:
++        client.get("/")
++
++    visible_context = exc_info.value.__cause__ or exc_info.value.__context__
++    assert visible_context is original_exc
++
++
+ @pytest.mark.anyio
+ async def test_do_not_block_on_background_tasks() -> None:
+     response_complete = anyio.Event()

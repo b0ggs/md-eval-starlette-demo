@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` now returns an awaitable async context manager that closes all parsed uploads on normal or exceptional exit. Added focused coverage for direct awaiting and cleanup paths.
+
+Import validation passed. The focused pytest run was stopped after hanging for 60 seconds; `uv` and `ruff` were unavailable.

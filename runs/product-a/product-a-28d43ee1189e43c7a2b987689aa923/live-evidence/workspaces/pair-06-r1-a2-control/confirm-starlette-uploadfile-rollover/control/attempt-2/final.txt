@@ -1,0 +1,7 @@
+Implemented R1.
+
+- `UploadFile.write()` now predicts spooled-file rollover and uses the thread pool for the triggering write.
+- Writes within the memory limit retain the synchronous fast path.
+- Added regression coverage for both paths.
+
+Validation: 19 focused tests passed. Full suite is environment-blocked by missing optional dependencies and sandbox restrictions on AnyIO threads/Trio sockets.

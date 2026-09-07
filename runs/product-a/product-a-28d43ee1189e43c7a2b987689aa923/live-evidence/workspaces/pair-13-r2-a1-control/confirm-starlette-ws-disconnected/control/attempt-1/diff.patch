@@ -1,0 +1,215 @@
+diff --git a/starlette/websockets.py b/starlette/websockets.py
+index 3ab709a..b3d2654 100644
+--- a/starlette/websockets.py
++++ b/starlette/websockets.py
+@@ -17,6 +17,10 @@ class WebSocketState(enum.Enum):
+     RESPONSE = 3
+ 
+ 
++class WebSocketDisconnected(RuntimeError):
++    pass
++
++
+ class WebSocketDisconnect(Exception):
+     def __init__(self, code: int = 1000, reason: str | None = None) -> None:
+         self.code = code
+@@ -54,7 +58,7 @@ class WebSocket(HTTPConnection[StateT]):
+                 self.client_state = WebSocketState.DISCONNECTED
+             return message
+         else:
+-            raise RuntimeError('Cannot call "receive" once a disconnect message has been received.')
++            raise WebSocketDisconnected('Cannot call "receive" once a disconnect message has been received.')
+ 
+     async def send(self, message: Message) -> None:
+         """
+@@ -95,7 +99,7 @@ class WebSocket(HTTPConnection[StateT]):
+                 self.application_state = WebSocketState.DISCONNECTED
+             await self._send(message)
+         else:
+-            raise RuntimeError('Cannot call "send" once a close message has been sent.')
++            raise WebSocketDisconnected('Cannot call "send" once a close message has been sent.')
+ 
+     async def accept(
+         self,
+@@ -115,14 +119,14 @@ class WebSocket(HTTPConnection[StateT]):
+ 
+     async def receive_text(self) -> str:
+         if self.application_state != WebSocketState.CONNECTED:
+-            raise RuntimeError('WebSocket is not connected. Need to call "accept" first.')
++            raise WebSocketDisconnected('WebSocket is not connected. Need to call "accept" first.')
+         message = await self.receive()
+         self._raise_on_disconnect(message)
+         return cast(str, message["text"])
+ 
+     async def receive_bytes(self) -> bytes:
+         if self.application_state != WebSocketState.CONNECTED:
+-            raise RuntimeError('WebSocket is not connected. Need to call "accept" first.')
++            raise WebSocketDisconnected('WebSocket is not connected. Need to call "accept" first.')
+         message = await self.receive()
+         self._raise_on_disconnect(message)
+         return cast(bytes, message["bytes"])
+@@ -131,7 +135,7 @@ class WebSocket(HTTPConnection[StateT]):
+         if mode not in {"text", "binary"}:
+             raise RuntimeError('The "mode" argument should be "text" or "binary".')
+         if self.application_state != WebSocketState.CONNECTED:
+-            raise RuntimeError('WebSocket is not connected. Need to call "accept" first.')
++            raise WebSocketDisconnected('WebSocket is not connected. Need to call "accept" first.')
+         message = await self.receive()
+         self._raise_on_disconnect(message)
+ 
+diff --git a/tests/test_websockets.py b/tests/test_websockets.py
+index c97173f..622d9a8 100644
+--- a/tests/test_websockets.py
++++ b/tests/test_websockets.py
+@@ -11,10 +11,14 @@ from starlette import status
+ from starlette.responses import FileResponse, Response, StreamingResponse
+ from starlette.testclient import WebSocketDenialResponse
+ from starlette.types import Message, Receive, Scope, Send
+-from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
++from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketDisconnected, WebSocketState
+ from tests.types import TestClientFactory
+ 
+ 
++def test_websocket_disconnected_is_runtime_error() -> None:
++    assert issubclass(WebSocketDisconnected, RuntimeError)
++
++
+ def test_websocket_url(test_client_factory: TestClientFactory) -> None:
+     async def app(scope: Scope, receive: Receive, send: Send) -> None:
+         websocket = WebSocket(scope, receive=receive, send=send)
+@@ -651,3 +655,70 @@ def test_receive_wrong_message_type(test_client_factory: TestClientFactory) -> N
+     with pytest.raises(RuntimeError):
+         with client.websocket_connect("/") as websocket:
+             websocket.send({"type": "websocket.connect"})
++
++
++@pytest.mark.anyio
++async def test_disconnected_low_level_operations() -> None:
++    messages: list[Message] = [
++        {"type": "websocket.connect"},
++        {"type": "websocket.disconnect", "code": 1000},
++    ]
++
++    async def receive() -> Message:
++        return messages.pop(0)
++
++    async def send(message: Message) -> None:
++        pass
++
++    websocket = WebSocket({"type": "websocket", "path": "/"}, receive, send)
++    await websocket.receive()
++    await websocket.receive()
++    with pytest.raises(
++        WebSocketDisconnected,
++        match='Cannot call "receive" once a disconnect message has been received.',
++    ):
++        await websocket.receive()
++
++    await websocket.send({"type": "websocket.accept"})
++    await websocket.send({"type": "websocket.close"})
++    with pytest.raises(
++        WebSocketDisconnected,
++        match='Cannot call "send" once a close message has been sent.',
++    ):
++        await websocket.send({"type": "websocket.close"})
++
++
++@pytest.mark.anyio
++@pytest.mark.parametrize("method_name", ["receive_text", "receive_bytes", "receive_json"])
++@pytest.mark.parametrize("application_state", [WebSocketState.CONNECTING, WebSocketState.DISCONNECTED])
++async def test_receive_helpers_when_application_not_connected(
++    method_name: str,
++    application_state: WebSocketState,
++) -> None:
++    async def receive() -> Message:  # pragma: no cover
++        raise AssertionError
++
++    async def send(message: Message) -> None:  # pragma: no cover
++        raise AssertionError
++
++    websocket = WebSocket({"type": "websocket", "path": "/"}, receive, send)
++    websocket.application_state = application_state
++    with pytest.raises(
++        WebSocketDisconnected,
++        match='WebSocket is not connected. Need to call "accept" first.',
++    ):
++        await getattr(websocket, method_name)()
++
++
++@pytest.mark.anyio
++async def test_receive_json_invalid_mode_is_runtime_error() -> None:
++    async def receive() -> Message:  # pragma: no cover
++        raise AssertionError
++
++    async def send(message: Message) -> None:  # pragma: no cover
++        raise AssertionError
++
++    websocket = WebSocket({"type": "websocket", "path": "/"}, receive, send)
++    with pytest.raises(RuntimeError) as exc:
++        await websocket.receive_json(mode="invalid")
++    assert type(exc.value) is RuntimeError
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,7 @@
++{
++  "tests/test_websockets.py::test_disconnected_low_level_operations[trio]": true,
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[trio-receive_text]": true,
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[trio-receive_bytes]": true,
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[trio-receive_json]": true,
++  "tests/test_websockets.py::test_receive_json_invalid_mode_is_runtime_error[trio]": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,19 @@
++[
++  "tests/test_websockets.py::test_disconnected_low_level_operations[asyncio]",
++  "tests/test_websockets.py::test_disconnected_low_level_operations[trio]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-WebSocketState.CONNECTING-receive_bytes]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-WebSocketState.CONNECTING-receive_json]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-WebSocketState.CONNECTING-receive_text]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-WebSocketState.DISCONNECTED-receive_bytes]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-WebSocketState.DISCONNECTED-receive_json]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-WebSocketState.DISCONNECTED-receive_text]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-receive_bytes]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-receive_json]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[asyncio-receive_text]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[trio-receive_bytes]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[trio-receive_json]",
++  "tests/test_websockets.py::test_receive_helpers_when_application_not_connected[trio-receive_text]",
++  "tests/test_websockets.py::test_receive_json_invalid_mode_is_runtime_error[asyncio]",
++  "tests/test_websockets.py::test_receive_json_invalid_mode_is_runtime_error[trio]",
++  "tests/test_websockets.py::test_websocket_disconnected_is_runtime_error"
++]

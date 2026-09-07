@@ -25,40 +25,16 @@ outside this model, repository, instruction file, or task distribution.
 
 Every attempt remains in the evidence, including incorrect completions and a
 timeout. The [per-task outcome table](../reports/STARLETTE_EIGHTEEN_TWO_REPEAT_V2_REPORT.md#per-task-outcomes)
-shows correctness and descriptive resource measurements for all 18 tasks.
+shows correctness for all 18 tasks and resource measurements only for the 16
+tasks having both usable paired repeats.
 
 ## Results
 
-### Registered primary analysis
+### Failures first
 
-| Endpoint | Result | Reason |
-|---|---|---|
-| Wall time | **INCONCLUSIVE** | Fewer than two jointly normal and resolved pairs for at least one task |
-| Tokens | **INCONCLUSIVE** | Fewer than two jointly normal and resolved pairs for at least one task |
-
-The preregistered analysis required exactly two usable common pairs for every
-task before either efficiency endpoint could support a conclusion.
-`confirm-starlette-exception-context` supplied one usable pair;
-`confirm-starlette-malformed-host` supplied none. The registered analysis
-therefore stops at `INCONCLUSIVE` even though the correctness gate itself
-passes.
-
-### Post-hoc exploratory complete-case sensitivity
-
-The complete-case analysis was selected after outcomes were known. It keeps the
-16 tasks with two usable pairs, treats tasks as the inferential units, and uses
-the same task-level log-ratio calculation on that subset. It is informative but
-cannot be relabeled registered or confirmatory.
-
-| Endpoint | Tasks | Reduction | 95% reduction CI | t (df) | Two-sided p | Result |
-|---|---:|---:|---:|---:|---:|---|
-| Wall time | 16 | 41.8854% | 32.3133%–50.1038% | -7.587268 (15) | 1.6430678e-06 | Significant |
-| Tokens | 16 | 33.0927% | 21.6050%–42.8970% | -5.405728 (15) | 7.2894331e-05 | Significant |
-
-### Incomplete pairs and failed attempts
-
-No failed observation was silently dropped from the record or the correctness
-totals.
+The historical run had **2 failures in 36 attempts per arm**; MD and No MD each
+passed 34/36 attempts. No failed observation was silently dropped from the
+record or the correctness totals.
 
 | Attempt | Task | Arm | Outcome |
 |---|---|---|---|
@@ -67,9 +43,70 @@ totals.
 | `pair-12-r1-a2-control` | `confirm-starlette-malformed-host` | No MD | Subject timeout |
 | `pair-12-r2-a1-control` | `confirm-starlette-malformed-host` | No MD | Checker unresolved after a normal completion |
 
-Resource means shown for a task with fewer than two usable pairs are descriptive
-only. They are not inputs to the registered endpoint or the 16-task
-complete-case calculation.
+### Complete-task analysis
+
+The analysis keeps a task only when **both** paired repeats are usable in both
+arms. It does not use a lone surviving repeat. Sixteen tasks met that rule,
+contributing 32 usable pairs; two tasks were excluded. Tasks are the inferential
+units, and the calculation uses task-level log ratios.
+
+| Endpoint | Tasks | Reduction | 95% reduction CI | t (df) | Two-sided p | Result |
+|---|---:|---:|---:|---:|---:|---|
+| Wall time | 16 | 41.8854% | 32.3133%–50.1038% | -7.587268 (15) | 1.6430678e-06 | **Significantly favorable** |
+| Tokens | 16 | 33.0927% | 21.6050%–42.8970% | -5.405728 (15) | 7.2894331e-05 | **Significantly favorable** |
+
+### Historical registration disclosure
+
+The stricter historical registration required exactly two usable common pairs
+for all 18 tasks. `confirm-starlette-exception-context` supplied one usable
+pair, and `confirm-starlette-malformed-host` supplied none, so that registered
+all-18 endpoint was unavailable. The 16-task complete-task analysis above was
+selected after outcomes were known and was not historically preregistered; it
+must not be relabeled registered or confirmatory. Its estimable, statistically
+significant result is nevertheless not “inconclusive.”
+
+## Fresh fixed Product A runs
+
+Fresh Product A runs use a separate, fixed lifecycle. Preparation always
+creates a unique directory under `runs/product-a/` and fixes all 18 bundled
+tasks, the bundled MD versus empty No-MD controls, `gpt-5.6-sol` with high
+reasoning, two paired repeats, subject concurrency 12, and an 80-invocation
+ceiling. Nothing in the CLI selects or substitutes tasks, models, controls, or
+instruction files.
+
+```bash
+python3 -m tooling.starlette_product_a prepare
+python3 -m tooling.starlette_product_a approve RUN_DIRECTORY REQUEST_SHA256
+python3 -m tooling.starlette_product_a run RUN_DIRECTORY
+python3 -m tooling.starlette_product_a verify-report RUN_DIRECTORY
+```
+
+`prepare` prints the new `run_directory`, request path, and `request_sha256`.
+The operator must pass that exact directory and digest to `approve`. The
+approval authorizes only those request bytes and is consumed at the beginning
+of the first `run` attempt, before preflight or any backend work. It cannot be
+reused. A later experiment or retry begins with a new `prepare` and a new
+explicit approval.
+
+All 18 tasks run. Two repeats produce 36 atomic MD/No-MD pairs and 72 planned
+fresh calls. At most four qualifying whole-pair replacements can add eight
+calls, for a hard maximum of 80. After completion, `verify-report` checks the
+preserved evidence and writes `RUN_DIRECTORY/REPORT.md`; the raw record remains
+under `RUN_DIRECTORY/live-evidence/`.
+
+The report is failures-first: it opens with failed and passed counts for the 36
+terminal repeat outcomes in each arm, then identifies every failed raw
+invocation and its reason, including a failure later superseded by a permitted
+replacement. A task enters an efficiency endpoint only when both of its paired
+repeats are usable in both arms. The analysis never retains a lone surviving
+repeat. It reports eligible tasks, excluded tasks and reasons, effect,
+confidence interval, two-sided p-value, and a fixed classification of
+significantly favorable, significantly unfavorable, nonsignificant, or not
+estimable.
+
+Only `run` can contact the live backend. Offline tests use injected fake
+executors; CI does not approve or launch a run and does not inspect
+authentication.
 
 ## The 18 tasks
 
@@ -123,7 +160,7 @@ solution structure. Outcome numbers are in the
 
 ## Preserved artifacts
 
-The active demonstration record is:
+The bundled historical demonstration record is:
 
 - [approved request](../runs/dev-v2/starlette-eighteen-two-repeat-v2/REQUEST.json)
   and [matching approval](../runs/dev-v2/starlette-eighteen-two-repeat-v2/APPROVED.json);
@@ -136,6 +173,12 @@ The active demonstration record is:
 - [registered analysis](../runs/dev-v2/starlette-eighteen-two-repeat-v2/live-evidence/analysis.json);
   and
 - [canonical Markdown report](../reports/STARLETTE_EIGHTEEN_TWO_REPEAT_V2_REPORT.md).
+
+The current fresh Product A record is preserved under
+[`runs/product-a/product-a-28d43ee1189e43c7a2b987689aa923/`](../runs/product-a/product-a-28d43ee1189e43c7a2b987689aa923/),
+including its request, one-use approval records, raw evidence, frozen analysis,
+and generated report. Its failures-first results are summarized in the
+[README](../README.md#fresh-product-a-result).
 
 The execution manifest hashes the run records, analysis, seal, and every
 workspace evidence file. The request binds the tasks, controls, ledgers,
@@ -168,7 +211,7 @@ zero exit from `cmp` proves that reproduction matches the canonical report
 byte-for-byte. No step checks authentication, uses the network, or invokes a
 model.
 
-## Frozen runner boundary
+## Runner boundary
 
 Replay and live execution are deliberately separate. The preserved v2 batch is
 immutable and must not be overwritten or used as a new launch target.
@@ -177,6 +220,7 @@ The exact historical lifecycle implementation is
 [`tooling/starlette_eighteen_task_experiment.py`](../tooling/starlette_eighteen_task_experiment.py).
 It is retained because the approved request binds its bytes. The public
 `tooling.starlette_demo` entry point exposes only task verification, evidence
-verification, and report reproduction; it cannot launch subjects. Creating a
-new live experiment or a configurable benchmark toolkit is outside this
-repository's scope.
+verification, and report reproduction for that preserved run; it cannot launch
+subjects. The separate `tooling.starlette_product_a` entry point creates only
+the fixed fresh Product A experiment documented above. It is not a configurable
+benchmark toolkit.

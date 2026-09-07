@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StaticFiles` to recognize horizontal-tab OWS in weak ETag lists. Added coverage for weak matches in first, middle, and last positions, preserving 304 empty-body behavior.
+
+`git diff --check` passed. Focused pytest verification was unavailable: `uv` was missing and the configured pytest runner timed out after 60 seconds without output.

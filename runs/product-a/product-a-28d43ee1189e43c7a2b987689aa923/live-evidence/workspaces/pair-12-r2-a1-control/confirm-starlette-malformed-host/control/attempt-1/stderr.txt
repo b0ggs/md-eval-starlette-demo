@@ -1,0 +1,3 @@
+2026-09-06T12:10:03.358447Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /workspace/starlette/routing.py:
+from starlette._utils import get_route_path
+2026-09-06T12:17:06.854480Z ERROR codex_core::tools::router: error=exec_command failed for `/usr/bin/bash -lc 'rm -rf /workspace/starlette/__pycache__ /workspace/starlette/middleware/__pycache__ && git -c safe.directory=/workspace status --short'`: CreateProcess { message: "Rejected(\"`/usr/bin/bash -lc 'rm -rf /workspace/starlette/__pycache__ /workspace/starlette/middleware/__pycache__ && git -c safe.directory=/workspace status --short'` rejected: rm -f style commands are not permitted. Use a safer approach\")" }

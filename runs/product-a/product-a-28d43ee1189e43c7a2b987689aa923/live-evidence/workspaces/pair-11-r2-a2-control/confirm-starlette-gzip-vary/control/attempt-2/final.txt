@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated gzip middleware to add `Vary: Accept-Encoding` for compressible identity responses while preserving small, pre-encoded, excluded, and streaming bodies. Added regression coverage.
+
+Direct ASGI checks and `git diff --check` passed. Pytest execution hangs on the repository’s existing TestClient path; test collection succeeds.

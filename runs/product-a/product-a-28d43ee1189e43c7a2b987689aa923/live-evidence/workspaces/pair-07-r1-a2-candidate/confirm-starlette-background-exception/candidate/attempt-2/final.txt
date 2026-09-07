@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to propagate delayed background-task exceptions after the response body completes. Added a focused regression test.
+
+Verification:
+
+- Focused asyncio test passed.
+- Adjacent background-task timing test passed.
+- Trio unavailable due sandbox socket restrictions.
+- Ruff unavailable in the environment.

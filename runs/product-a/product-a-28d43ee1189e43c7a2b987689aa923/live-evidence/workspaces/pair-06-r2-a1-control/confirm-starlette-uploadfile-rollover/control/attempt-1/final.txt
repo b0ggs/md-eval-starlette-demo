@@ -1,0 +1,7 @@
+Implemented R1.
+
+- `UploadFile.write()` now anticipates spool rollover and uses the thread pool for the rollover-causing write.
+- Writes remaining within the spool limit retain the synchronous in-memory fast path.
+- Added regression coverage for threshold and rollover behavior.
+
+Verification: focused asyncio tests pass; compilation and diff checks pass. Trio is blocked by sandbox socket permissions, and `ruff`/`mypy` are unavailable.

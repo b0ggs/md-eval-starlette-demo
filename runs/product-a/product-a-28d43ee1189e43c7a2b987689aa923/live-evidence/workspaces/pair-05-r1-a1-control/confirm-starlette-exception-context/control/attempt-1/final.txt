@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated [base.py](/workspace/starlette/middleware/base.py) to preserve application exception chaining across stream and task-group re-raises. Added regression coverage for plain, implicit, explicit, and suppressed contexts.
+
+Verification: 6 focused asyncio tests passed. Trio initialization is blocked by sandbox socket permissions.

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated [responses.py](/workspace/starlette/responses.py) so streamed and file denial responses emit valid WebSocket denial events while preserving HTTP behavior. Added focused coverage in [test_websockets.py](/workspace/tests/test_websockets.py).
+
+ASGI denial and adjacent HTTP regressions pass. Pytest could not complete because this environment’s AnyIO worker-thread bridge hangs even on a standalone `os.stat`; final scope and whitespace checks pass.

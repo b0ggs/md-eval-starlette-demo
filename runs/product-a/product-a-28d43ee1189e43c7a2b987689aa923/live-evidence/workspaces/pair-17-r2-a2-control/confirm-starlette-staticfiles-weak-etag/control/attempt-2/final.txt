@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StaticFiles` to recognize weak ETags separated by spaces or horizontal tabs in any list position. Added regression coverage for first, middle, and last positions, including 304 empty-body behavior.
+
+Syntax, validator checks, and diff validation passed. The focused pytest run hung in the environment’s pre-existing static-file request path.

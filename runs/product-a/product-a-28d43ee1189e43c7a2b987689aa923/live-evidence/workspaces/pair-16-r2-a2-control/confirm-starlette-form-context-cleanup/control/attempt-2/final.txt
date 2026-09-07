@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` is now both directly awaitable and usable with `async with`. Context exit closes all parsed uploads, including when the body raises.
+
+Added regression tests; asyncio cases pass (`2 passed`). Trio cannot run because the sandbox blocks required socket configuration.

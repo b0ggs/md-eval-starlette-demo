@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated [staticfiles.py](/workspace/starlette/staticfiles.py:213) to recognize HTAB as HTTP optional whitespace around weak ETags. Added regression coverage in [test_staticfiles.py](/workspace/tests/test_staticfiles.py:217).
+
+Direct response checks and compilation passed. Full integration tests could not complete because this environment hangs in `anyio.to_thread.run_sync`.

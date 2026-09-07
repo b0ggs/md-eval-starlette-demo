@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`State` now implements `MutableMapping` with keyed access, mutation, deletion, iteration, and length while preserving attribute access and the original backing mapping.
+
+Added regression coverage for custom mutable mappings and shared values. Focused tests pass: 2 passed. Broader `TestClient` tests stall due to the evaluation environment; `ruff`, `mypy`, and `uv` are unavailable.

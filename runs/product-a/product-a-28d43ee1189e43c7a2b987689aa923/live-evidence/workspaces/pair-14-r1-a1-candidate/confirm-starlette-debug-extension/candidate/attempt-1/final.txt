@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+`TestClient` now:
+
+- Preserves complete `http.response.debug` info in `response.extensions`.
+- Supports arbitrary debug mappings without template/context keys.
+- Retains `response.template` and `response.context` compatibility.
+
+Added focused coverage. Diff checks pass; pytest was unavailable through `uv`, and the fallback runner timed out after 30 seconds.

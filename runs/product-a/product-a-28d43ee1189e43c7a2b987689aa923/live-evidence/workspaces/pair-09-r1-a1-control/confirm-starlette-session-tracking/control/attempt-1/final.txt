@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Session cookies now persist only after data changes. Session access adds `Cookie` to `Vary` while preserving existing values. Added regression coverage.
+
+Validation: ASGI behavior checks and test collection passed; the TestClient run stalled in the unchanged baseline environment.

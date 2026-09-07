@@ -1,0 +1,135 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 90bd346..74c9f24 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -2,7 +2,6 @@ from __future__ import annotations
+ 
+ import asyncio
+ import functools
+-import re
+ import sys
+ import typing
+ from contextlib import contextmanager
+@@ -84,6 +83,18 @@ def collapse_excgroups() -> typing.Generator[None, None, None]:
+ 
+ 
+ def get_route_path(scope: Scope) -> str:
++    path: str = scope["path"]
+     root_path = scope.get("root_path", "")
+-    route_path = re.sub(r"^" + root_path, "", scope["path"])
+-    return route_path
++    if not root_path:
++        return path
++
++    if not path.startswith(root_path):
++        return path
++
++    if path == root_path:
++        return ""
++
++    if path[len(root_path)] == "/":
++        return path[len(root_path) :]
++
++    return path
+diff --git a/tests/test__utils.py b/tests/test__utils.py
+index 2ecf474..e4320c2 100644
+--- a/tests/test__utils.py
++++ b/tests/test__utils.py
+@@ -1,7 +1,25 @@
+ import functools
+ from typing import Any
+ 
+-from starlette._utils import is_async_callable
++import pytest
++
++from starlette._utils import get_route_path, is_async_callable
++
++
++@pytest.mark.parametrize(
++    ("root_path", "path", "expected_route_path"),
++    [
++        ("", "/path", "/path"),
++        ("/root", "/root/path", "/path"),
++        ("/root", "/root", ""),
++        ("/root", "/root-queue/path", "/root-queue/path"),
++        ("/root", "/other/path", "/other/path"),
++    ],
++)
++def test_get_route_path(root_path: str, path: str, expected_route_path: str) -> None:
++    scope = {"type": "http", "root_path": root_path, "path": path}
++
++    assert get_route_path(scope) == expected_route_path
+ 
+ 
+ def test_async_func() -> None:
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index 9fa44de..7aefd6b 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -1266,3 +1266,19 @@ def test_paths_with_root_path(test_client_factory: TestClientFactory) -> None:
+         "path": "/root/sub/path",
+         "root_path": "/root/sub",
+     }
++
++
++def test_route_with_root_path_text_prefix(test_client_factory: TestClientFactory) -> None:
++    app = Starlette(
++        routes=[Route("/root-queue/path", endpoint=functools.partial(echo_paths, name="root-queue"))]
++    )
++    client = test_client_factory(app, base_url="https://www.example.org/", root_path="/root")
++
++    response = client.get("/root-queue/path")
++
++    assert response.status_code == 200
++    assert response.json() == {
++        "name": "root-queue",
++        "path": "/root-queue/path",
++        "root_path": "/root",
++    }
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,13 @@
++[
++  "tests/test__utils.py::test_async_func",
++  "tests/test__utils.py::test_async_method",
++  "tests/test__utils.py::test_async_nested_partial",
++  "tests/test__utils.py::test_async_object_call",
++  "tests/test__utils.py::test_async_partial",
++  "tests/test__utils.py::test_async_partial_object_call",
++  "tests/test__utils.py::test_get_route_path[-/path-/path]",
++  "tests/test__utils.py::test_get_route_path[/root-/other/path-/other/path]",
++  "tests/test__utils.py::test_get_route_path[/root-/root-]",
++  "tests/test__utils.py::test_get_route_path[/root-/root-queue/path-/root-queue/path]",
++  "tests/test__utils.py::test_get_route_path[/root-/root/path-/path]"
++]

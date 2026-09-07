@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StreamingResponse` and `FileResponse` to emit valid WebSocket denial events while preserving HTTP behavior. Added coverage for streamed bodies, background execution, file content, and status codes.
+
+Verification gap: `uv`/`ruff` were unavailable, and the bounded pytest run timed out without output. Diff validation passed.

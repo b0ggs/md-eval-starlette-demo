@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated `StreamingResponse` to handle ASGI 2.4+ send-side `OSError` as `ClientDisconnect`, immediately stop iteration, and avoid polling `receive`. Added focused regression coverage.
+
+Tests:
+
+- Focused asyncio test: passed
+- Legacy receive-disconnect regression: passed
+- Trio unavailable due to sandbox socket permissions; asyncio behavior verified.

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to re-raise downstream background-task exceptions after task-group completion. Added a focused regression test.
+
+`git diff --check` passes. Focused pytest runs timed out without output; no broader tests were run per CODER.md.
