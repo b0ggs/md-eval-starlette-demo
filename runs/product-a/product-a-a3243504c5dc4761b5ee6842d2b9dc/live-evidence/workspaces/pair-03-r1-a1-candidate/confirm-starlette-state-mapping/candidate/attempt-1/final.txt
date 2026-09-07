@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`State` now implements `MutableMapping`, supports keyed operations, iteration, and length, accepts mutable mapping subclasses by reference, and preserves attribute access—including keys such as `items`.
+
+Focused mapping test passed. The adjacent lifespan regression timed out twice without output; no further equivalent retries were run per repository instructions. Diff validation passed.

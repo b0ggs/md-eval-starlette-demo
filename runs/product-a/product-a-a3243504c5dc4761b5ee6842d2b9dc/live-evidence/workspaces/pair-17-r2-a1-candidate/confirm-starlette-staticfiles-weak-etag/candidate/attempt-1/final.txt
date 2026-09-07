@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `StaticFiles` to recognize tab-separated weak ETags and added regression coverage for a weak tag later in the list.
+
+`git diff --check` passed. Focused pytest attempts timed out; Ruff is unavailable in the environment.

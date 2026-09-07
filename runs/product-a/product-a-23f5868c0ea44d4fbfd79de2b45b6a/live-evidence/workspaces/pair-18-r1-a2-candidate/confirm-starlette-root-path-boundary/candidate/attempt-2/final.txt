@@ -1,0 +1,3 @@
+BLOCKED
+
+The repository command host is disabled. After the permitted retry, I still could not read `CODER.md` or `.issue-contract.md`, so implementation could not safely begin. No files were changed.

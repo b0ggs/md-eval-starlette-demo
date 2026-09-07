@@ -1,0 +1,185 @@
+diff --git a/starlette/requests.py b/starlette/requests.py
+index a14ae11..10b1022 100644
+--- a/starlette/requests.py
++++ b/starlette/requests.py
+@@ -2,9 +2,9 @@ from __future__ import annotations
+ 
+ import json
+ import sys
+-from collections.abc import AsyncGenerator, Iterator, Mapping
++from collections.abc import AsyncGenerator, Awaitable, Generator, Iterator, Mapping
+ from http import cookies as http_cookies
+-from typing import TYPE_CHECKING, Any, Generic, NoReturn, cast
++from typing import TYPE_CHECKING, Any, Generic, NoReturn, Protocol, cast
+ 
+ import anyio
+ 
+@@ -76,6 +76,33 @@ class ClientDisconnect(Exception):
+ StateT = TypeVar("StateT", bound=Mapping[str, Any] | State, default=State)
+ 
+ 
++class SupportsAsyncClose(Protocol):
++    async def close(self) -> None: ...
++
++
++SupportsAsyncCloseType = TypeVar("SupportsAsyncCloseType", bound=SupportsAsyncClose)
++
++
++class AwaitableOrContextManagerWrapper(Generic[SupportsAsyncCloseType]):
++    __slots__ = ("aw", "entered")
++
++    def __init__(self, aw: Awaitable[SupportsAsyncCloseType]) -> None:
++        self.aw = aw
++
++    def __await__(self) -> Generator[Any, None, SupportsAsyncCloseType]:
++        return self.aw.__await__()
++
++    async def __aenter__(self) -> SupportsAsyncCloseType:
++        self.entered = await self.aw
++        return self.entered
++
++    async def __aexit__(self, *args: Any) -> None:
++        await self.entered.close()
++
++
++AwaitableOrContextManager = AwaitableOrContextManagerWrapper[SupportsAsyncCloseType]
++
++
+ class HTTPConnection(Mapping[str, Any], Generic[StateT]):
+     """
+     A base class for incoming HTTP connections, that is used to provide
+@@ -309,14 +336,16 @@ class Request(HTTPConnection[StateT]):
+                 self._form = FormData()
+         return self._form
+ 
+-    async def form(
++    def form(
+         self,
+         *,
+         max_files: int | float = 1000,
+         max_fields: int | float = 1000,
+         max_part_size: int = 1024 * 1024,
+-    ) -> FormData:
+-        return await self._get_form(max_files=max_files, max_fields=max_fields, max_part_size=max_part_size)
++    ) -> AwaitableOrContextManager[FormData]:
++        return AwaitableOrContextManagerWrapper(
++            self._get_form(max_files=max_files, max_fields=max_fields, max_part_size=max_part_size)
++        )
+ 
+     async def close(self) -> None:
+         if self._form is not None:  # pragma: no branch
+diff --git a/tests/test_formparsers.py b/tests/test_formparsers.py
+index a960e19..cffb010 100644
+--- a/tests/test_formparsers.py
++++ b/tests/test_formparsers.py
+@@ -18,7 +18,7 @@ from starlette.formparsers import FormParser, MultiPartException, MultiPartParse
+ from starlette.requests import Request
+ from starlette.responses import JSONResponse
+ from starlette.routing import Mount
+-from starlette.types import ASGIApp, Receive, Scope, Send
++from starlette.types import ASGIApp, Message, Receive, Scope, Send
+ from tests.types import TestClientFactory
+ 
+ 
+@@ -172,6 +172,52 @@ def test_multipart_request_files(tmpdir: Path, test_client_factory: TestClientFa
+         }
+ 
+ 
++@pytest.mark.parametrize("raise_in_context", [False, True])
++@pytest.mark.anyio
++async def test_request_form_context_manager_closes_files(raise_in_context: bool) -> None:
++    body = (
++        b"--boundary\r\n"
++        b'Content-Disposition: form-data; name="files"; filename="one.txt"\r\n'
++        b"Content-Type: text/plain\r\n\r\n"
++        b"one\r\n"
++        b"--boundary\r\n"
++        b'Content-Disposition: form-data; name="files"; filename="two.txt"\r\n'
++        b"Content-Type: text/plain\r\n\r\n"
++        b"two\r\n"
++        b"--boundary--\r\n"
++    )
++
++    async def receive() -> Message:
++        return {"type": "http.request", "body": body}
++
++    request = Request(
++        {
++            "type": "http",
++            "method": "POST",
++            "path": "/",
++            "headers": [(b"content-type", b"multipart/form-data; boundary=boundary")],
++        },
++        receive,
++    )
++    uploads: list[UploadFile] = []
++
++    async def use_form() -> None:
++        async with request.form() as form:
++            uploads.extend(value for _, value in form.multi_items() if isinstance(value, UploadFile))
++            assert len(uploads) == 2
++            assert all(not upload.file.closed for upload in uploads)
++            if raise_in_context:
++                raise RuntimeError("context body failed")
++
++    if raise_in_context:
++        with pytest.raises(RuntimeError, match="context body failed"):
++            await use_form()
++    else:
++        await use_form()
++
++    assert all(upload.file.closed for upload in uploads)
++
++
+ def test_multipart_request_files_with_content_type(tmpdir: Path, test_client_factory: TestClientFactory) -> None:
+     path = os.path.join(tmpdir, "test.txt")
+     with open(path, "wb") as file:
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,4 @@
++{
++  "tests/test_formparsers.py::test_request_form_context_manager_closes_files[trio-False]": true,
++  "tests/test_formparsers.py::test_request_form_context_manager_closes_files[trio-True]": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,6 @@
++[
++  "tests/test_formparsers.py::test_request_form_context_manager_closes_files[asyncio-False]",
++  "tests/test_formparsers.py::test_request_form_context_manager_closes_files[asyncio-True]",
++  "tests/test_formparsers.py::test_request_form_context_manager_closes_files[trio-False]",
++  "tests/test_formparsers.py::test_request_form_context_manager_closes_files[trio-True]"
++]

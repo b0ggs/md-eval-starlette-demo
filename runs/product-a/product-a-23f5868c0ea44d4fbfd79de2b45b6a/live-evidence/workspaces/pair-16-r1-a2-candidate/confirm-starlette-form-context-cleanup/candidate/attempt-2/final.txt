@@ -1,0 +1,3 @@
+BLOCKED
+
+The repository command host is disabled. Both the initial read and one simplified retry failed, so I could not read the required files or safely execute the issue contract. No files were changed.

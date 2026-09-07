@@ -1,0 +1,59 @@
+diff --git a/starlette/testclient.py b/starlette/testclient.py
+index 63d8790..2716310 100644
+--- a/starlette/testclient.py
++++ b/starlette/testclient.py
+@@ -344,8 +344,11 @@ class _TestClientTransport(httpx.BaseTransport):
+                     raw_kwargs["stream"].seek(0)
+                     response_complete.set()
+             elif message["type"] == "http.response.debug":
+-                template = message["info"]["template"]
+-                context = message["info"]["context"]
++                info = message["info"]
++                raw_kwargs.setdefault("extensions", {})["http.response.debug"] = info
++                if "template" in info and "context" in info:
++                    template = info["template"]
++                    context = info["context"]
+ 
+         try:
+             with self.portal_factory() as portal:
+diff --git a/tests/test_testclient.py b/tests/test_testclient.py
+index b5a347c..d6d0f74 100644
+--- a/tests/test_testclient.py
++++ b/tests/test_testclient.py
+@@ -86,6 +86,36 @@ def test_testclient_headers_behavior() -> None:
+     assert client.headers.get("Authentication") == "Bearer 123"
+ 
+ 
++def test_testclient_response_debug_extension(test_client_factory: TestClientFactory) -> None:
++    info = {"custom": {"nested": True}}
++
++    async def app(scope: Scope, receive: Receive, send: Send) -> None:
++        await send({"type": "http.response.debug", "info": info})
++        await send({"type": "http.response.start", "status": 200})
++        await send({"type": "http.response.body"})
++
++    response = test_client_factory(app).get("/")
++
++    assert response.extensions["http.response.debug"] == info
++
++
++def test_testclient_response_debug_template_compatibility(test_client_factory: TestClientFactory) -> None:
++    template = object()
++    context = {"name": "world"}
++    info = {"template": template, "context": context, "custom": "value"}
++
++    async def app(scope: Scope, receive: Receive, send: Send) -> None:
++        await send({"type": "http.response.debug", "info": info})
++        await send({"type": "http.response.start", "status": 200})
++        await send({"type": "http.response.body"})
++
++    response = test_client_factory(app).get("/")
++
++    assert response.extensions["http.response.debug"] == info
++    assert response.template is template  # type: ignore[attr-defined]
++    assert response.context is context  # type: ignore[attr-defined]
++
++
+ def test_use_testclient_as_contextmanager(test_client_factory: TestClientFactory, anyio_backend_name: str) -> None:
+     """
+     This test asserts a number of properties that are important for an

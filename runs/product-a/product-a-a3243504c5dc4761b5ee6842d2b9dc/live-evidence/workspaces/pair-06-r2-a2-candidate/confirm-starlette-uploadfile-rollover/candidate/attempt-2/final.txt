@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `UploadFile.write()` to use the thread pool when a pending write will exceed the spool limit, while preserving direct in-memory writes below it. Added focused coverage; asyncio test passes.
+
+The adjacent rollover regression timed out in this sandbox; Trio initialization is also blocked by socket permissions.

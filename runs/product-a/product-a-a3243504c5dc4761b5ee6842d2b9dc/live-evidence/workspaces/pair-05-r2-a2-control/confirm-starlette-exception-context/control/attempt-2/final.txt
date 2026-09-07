@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to preserve explicit causes or meaningful contexts while hiding internal `EndOfStream` exceptions. Added regression coverage for explicit and implicit chaining.
+
+Focused asyncio tests passed; Trio was unavailable due sandbox socket restrictions.

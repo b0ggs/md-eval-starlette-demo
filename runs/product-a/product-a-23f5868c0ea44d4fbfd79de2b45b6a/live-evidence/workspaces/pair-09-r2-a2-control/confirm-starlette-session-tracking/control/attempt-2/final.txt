@@ -1,0 +1,3 @@
+BLOCKED
+
+The execution host is disabled, so I could not read `CODER.md` or `.issue-contract.md` and therefore could not safely implement the issue contract.

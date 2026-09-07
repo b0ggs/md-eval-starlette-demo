@@ -1,0 +1,7 @@
+IMPLEMENTED
+
+TASK_COMPLETE
+
+Updated [starlette/testclient.py](/workspace/starlette/testclient.py:346) to preserve complete `http.response.debug` info in response extensions while retaining optional template/context attributes. Added focused regression coverage.
+
+`git diff --check` passed. Pytest could not collect because `jinja2` is unavailable in the environment.

@@ -1,0 +1,89 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 90bd346..ecc3ad2 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -2,7 +2,6 @@ from __future__ import annotations
+ 
+ import asyncio
+ import functools
+-import re
+ import sys
+ import typing
+ from contextlib import contextmanager
+@@ -85,5 +84,14 @@ def collapse_excgroups() -> typing.Generator[None, None, None]:
+ 
+ def get_route_path(scope: Scope) -> str:
+     root_path = scope.get("root_path", "")
+-    route_path = re.sub(r"^" + root_path, "", scope["path"])
+-    return route_path
++    path = scope["path"]
++    if not root_path:
++        return path
++
++    if path == root_path:
++        return ""
++
++    if path.startswith(root_path + "/"):
++        return path[len(root_path) :]
++
++    return path
+diff --git a/tests/test__utils.py b/tests/test__utils.py
+index 2ecf474..83657c1 100644
+--- a/tests/test__utils.py
++++ b/tests/test__utils.py
+@@ -1,7 +1,24 @@
+ import functools
+ from typing import Any
+ 
+-from starlette._utils import is_async_callable
++import pytest
++
++from starlette._utils import get_route_path, is_async_callable
++from starlette.types import Scope
++
++
++@pytest.mark.parametrize(
++    ("path", "root_path", "expected_route_path"),
++    [
++        ("/root/path", "/root", "/path"),
++        ("/root", "/root", ""),
++        ("/root-queue/path", "/root", "/root-queue/path"),
++    ],
++)
++def test_get_route_path(path: str, root_path: str, expected_route_path: str) -> None:
++    scope: Scope = {"path": path, "root_path": root_path}
++
++    assert get_route_path(scope) == expected_route_path
+ 
+ 
+ def test_async_func() -> None:
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index 9fa44de..42c6718 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -1238,7 +1238,12 @@ echo_paths_routes = [
+ 
+ 
+ def test_paths_with_root_path(test_client_factory: TestClientFactory) -> None:
+-    app = Starlette(routes=echo_paths_routes)
++    app = Starlette(
++        routes=[
++            *echo_paths_routes,
++            Route("/root-queue/path", functools.partial(echo_paths, name="root-queue")),
++        ]
++    )
+     client = test_client_factory(app, base_url="https://www.example.org/", root_path="/root")
+     response = client.get("/root/path")
+     assert response.status_code == 200
+@@ -1266,3 +1271,11 @@ def test_paths_with_root_path(test_client_factory: TestClientFactory) -> None:
+         "path": "/root/sub/path",
+         "root_path": "/root/sub",
+     }
++
++    response = client.get("/root-queue/path")
++    assert response.status_code == 200
++    assert response.json() == {
++        "name": "root-queue",
++        "path": "/root-queue/path",
++        "root_path": "/root",
++    }

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added `WebSocketDisconnected`, updated disconnected send/receive paths and receive helpers, and preserved existing messages and other exception behavior. Updated focused tests accordingly.
+
+Verification gap: both bounded pytest attempts timed out without output; static scope review passed.

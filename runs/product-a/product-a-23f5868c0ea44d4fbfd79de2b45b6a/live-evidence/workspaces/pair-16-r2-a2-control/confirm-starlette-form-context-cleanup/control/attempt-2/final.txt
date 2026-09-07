@@ -1,0 +1,3 @@
+BLOCKED
+
+The workspace command runner is disabled, so I could not read `CODER.md` or `.issue-contract.md`. Their instructions prohibit acting before reading both files completely.

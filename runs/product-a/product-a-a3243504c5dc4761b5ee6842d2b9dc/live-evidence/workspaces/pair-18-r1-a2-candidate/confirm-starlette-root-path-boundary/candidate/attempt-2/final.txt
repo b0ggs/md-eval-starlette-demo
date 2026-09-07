@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to remove `root_path` only at a full segment boundary or exact match. Added unit and routing regressions for `/root-queue/path`.
+
+Verification:
+
+- Three direct boundary cases passed.
+- Routing test hung in the environment and was stopped.
+- `ruff` was unavailable.
+- `git diff --check` passed.

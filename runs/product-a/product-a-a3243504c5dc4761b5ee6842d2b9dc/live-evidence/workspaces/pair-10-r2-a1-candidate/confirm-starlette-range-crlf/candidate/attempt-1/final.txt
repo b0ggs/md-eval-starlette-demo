@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated multipart byte-range responses to:
+
+- Use standards-compliant CRLF framing.
+- Emit the correct terminal boundary.
+- Calculate exact `Content-Length`.
+- Cover GET, HEAD, reordered ranges, and small chunks in tests.
+
+Deterministic MIME parsing and length checks passed. Pytest timed out without output; Ruff was unavailable.

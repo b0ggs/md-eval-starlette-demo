@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated HTTP middleware to re-raise application exceptions outside the internal `EndOfStream` handler, preserving explicit causes and meaningful context. Added regression coverage for both chaining modes.
+
+Static compilation and diff checks passed. Targeted pytest verification could not complete: `uv` was unavailable and the permitted pytest retry timed out.

@@ -1,0 +1,3 @@
+BLOCKED
+
+The command-execution host is disabled, so I could not read `CODER.md` or `.issue-contract.md`. I made no repository changes.

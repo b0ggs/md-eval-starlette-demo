@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated static-file ETag parsing to accept horizontal tabs as HTTP optional whitespace. Added coverage for a weak matching ETag after a mismatching list member.
+
+`git diff --check` passed. Focused pytest verification timed out after 30 seconds with no output.

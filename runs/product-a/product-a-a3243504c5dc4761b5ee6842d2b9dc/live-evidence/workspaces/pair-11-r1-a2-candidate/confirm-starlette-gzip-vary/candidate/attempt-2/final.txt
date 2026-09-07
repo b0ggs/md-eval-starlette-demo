@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated gzip middleware so compressible identity responses add `Vary: Accept-Encoding` without compression. Small, pre-encoded, excluded, and streaming bodies retain existing behavior.
+
+Added focused regression assertions. `git diff --check` passed; pytest stalled on the first test and timed out after the permitted retry.

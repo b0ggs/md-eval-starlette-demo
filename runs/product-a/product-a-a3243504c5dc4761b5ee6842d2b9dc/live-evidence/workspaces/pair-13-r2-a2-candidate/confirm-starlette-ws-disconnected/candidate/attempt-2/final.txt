@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added `WebSocketDisconnected(RuntimeError)` and applied it to disconnected low-level send/receive operations and receive helpers. Existing messages and other exception behavior remain unchanged.
+
+Focused asyncio test passed. Trio was unavailable due sandbox socket restrictions; the adjacent regression hung and was stopped.

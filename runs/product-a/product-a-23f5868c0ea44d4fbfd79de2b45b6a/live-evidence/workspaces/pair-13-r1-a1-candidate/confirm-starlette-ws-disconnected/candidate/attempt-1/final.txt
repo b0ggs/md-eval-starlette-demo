@@ -1,0 +1,3 @@
+BLOCKED
+
+The shell bridge is disabled, so I could not read the mandatory `CODER.md` and `.issue-contract.md` files after the permitted retry. No repository changes were made.

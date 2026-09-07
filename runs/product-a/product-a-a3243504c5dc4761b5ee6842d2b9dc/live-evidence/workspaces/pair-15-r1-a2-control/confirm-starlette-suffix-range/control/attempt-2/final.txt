@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix byte ranges to byte zero. `FileResponse` now returns the full file with `206` and accurate `Content-Range`/`Content-Length` headers. Added regression coverage.
+
+Mocked ASGI verification and syntax checks passed; pytest’s thread-backed file I/O stalled in this environment, including for an unchanged existing test.

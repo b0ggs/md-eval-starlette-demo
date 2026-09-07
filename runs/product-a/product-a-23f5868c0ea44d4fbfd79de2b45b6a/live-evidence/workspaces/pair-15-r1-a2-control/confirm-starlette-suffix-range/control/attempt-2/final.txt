@@ -1,0 +1,3 @@
+BLOCKED
+
+The execution host is disabled, so I could not read `CODER.md` or `.issue-contract.md`. Since both must be read completely before acting, no repository changes were made.

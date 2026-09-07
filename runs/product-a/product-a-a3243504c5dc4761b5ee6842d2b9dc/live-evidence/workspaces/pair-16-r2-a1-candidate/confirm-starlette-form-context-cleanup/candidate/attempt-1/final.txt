@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` is now directly awaitable and usable with `async with`. Context exit closes all parsed uploads, including when the body raises. Added regression coverage for multiple uploads and exceptional exit.
+
+Verification: `git diff --check` passed. Pytest hung; the bounded retry could not collect because required plugins were disabled. Ruff/mypy binaries were unavailable.

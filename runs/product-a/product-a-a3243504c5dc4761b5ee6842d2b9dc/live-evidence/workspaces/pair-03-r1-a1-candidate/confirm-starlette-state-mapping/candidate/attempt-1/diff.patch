@@ -1,0 +1,91 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index e621900..58c732c 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -663,20 +663,44 @@ class MutableHeaders(Headers):
+         self["vary"] = vary
+ 
+ 
+-class State:
++class State(MutableMapping[str, Any]):
+     """
+     An object that can be used to store arbitrary state.
+ 
+     Used for `request.state` and `app.state`.
+     """
+ 
+-    _state: dict[str, Any]
++    _state: MutableMapping[str, Any]
+ 
+-    def __init__(self, state: dict[str, Any] | None = None):
++    def __init__(self, state: MutableMapping[str, Any] | None = None):
+         if state is None:
+             state = {}
+         super().__setattr__("_state", state)
+ 
++    def __getitem__(self, key: str) -> Any:
++        return self._state[key]
++
++    def __setitem__(self, key: str, value: Any) -> None:
++        self._state[key] = value
++
++    def __delitem__(self, key: str) -> None:
++        del self._state[key]
++
++    def __iter__(self) -> Iterator[str]:
++        return iter(self._state)
++
++    def __len__(self) -> int:
++        return len(self._state)
++
++    def __getattribute__(self, key: str) -> Any:
++        if key != "_state":
++            state = super().__getattribute__("_state")
++            try:
++                return state[key]
++            except KeyError:
++                pass
++        return super().__getattribute__(key)
++
+     def __setattr__(self, key: Any, value: Any) -> None:
+         self._state[key] = value
+ 
+diff --git a/tests/test_requests.py b/tests/test_requests.py
+index a2fa384..578aa93 100644
+--- a/tests/test_requests.py
++++ b/tests/test_requests.py
+@@ -1,7 +1,8 @@
+ from __future__ import annotations
+ 
+ import sys
+-from collections.abc import Iterator
++from collections import UserDict
++from collections.abc import Iterator, MutableMapping
+ from typing import Any
+ 
+ import anyio
+@@ -290,14 +291,22 @@ def test_request_is_disconnected(test_client_factory: TestClientFactory) -> None
+ 
+ 
+ def test_request_state_object() -> None:
+-    scope = {"state": {"old": "foo"}}
++    items: list[int] = []
++    scope = {"state": UserDict({"old": "foo", "items": items})}
+ 
+     s = State(scope["state"])
+ 
+     s.new = "value"
+-    assert s.new == "value"
++    s["other"] = "another value"
++    assert s["new"] == "value"
++    assert s.other == "another value"
++    assert s.items is items
++    assert isinstance(s, MutableMapping)
++    assert dict(s) == {"old": "foo", "items": items, "new": "value", "other": "another value"}
++    assert len(s) == 4
+ 
+     del s.new
++    del s["other"]
+ 
+     with pytest.raises(AttributeError):
+         s.new

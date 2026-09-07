@@ -1,0 +1,9 @@
+Implemented request/lifespan state mapping support.
+
+- `State` now implements `MutableMapping` operations.
+- Attribute access remains supported.
+- Custom mutable mappings and shared values retain identity.
+- Added regression tests; focused tests pass.
+- `ruff`/`mypy` were unavailable in the environment.
+
+TASK_COMPLETE

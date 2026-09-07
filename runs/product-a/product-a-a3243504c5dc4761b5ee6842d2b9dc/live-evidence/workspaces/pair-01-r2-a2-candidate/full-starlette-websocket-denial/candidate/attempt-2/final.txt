@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated [responses.py](/workspace/starlette/responses.py) so streamed and file-based WebSocket denials emit valid denial events, preserve bodies/status, avoid HTTP-only scope assumptions, and retain HTTP behavior. Added focused regression tests in [test_websockets.py](/workspace/tests/test_websockets.py).
+
+Verification gap: `uv` was unavailable; direct pytest timed out after 30 seconds without output. `git diff --check` passed.

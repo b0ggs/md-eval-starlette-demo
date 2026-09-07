@@ -1,0 +1,5 @@
+Implemented R1.
+
+- Oversized suffix ranges now clamp their start to byte zero.
+- Added regression coverage for `206`, full body, `Content-Range`, and `Content-Length`.
+- Parser and integrated GET/HEAD checks passed; pytest’s `TestClient` hung due to the container’s async file-I/O environment.

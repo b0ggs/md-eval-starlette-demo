@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated [staticfiles.py](/workspace/starlette/staticfiles.py:210) to parse weak ETags with HTTP optional whitespace, including tabs. Added regression coverage for first, middle, and last list positions.
+
+Direct validator checks, compilation, and diff checks passed. The focused pytest run was terminated after an unrelated TestClient hang.

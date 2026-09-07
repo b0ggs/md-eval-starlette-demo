@@ -1,0 +1,7 @@
+Implemented credentialed wildcard CORS handling.
+
+- Simple responses now echo the request’s `Origin`, with or without cookies.
+- Existing `Vary` values are preserved and `Origin` appended.
+- Updated regression tests in [test_cors.py](/workspace/tests/middleware/test_cors.py).
+
+Direct ASGI checks and compilation passed. Pytest could not complete because the baseline `TestClient` hangs in this environment; Ruff is not installed.

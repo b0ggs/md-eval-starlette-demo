@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated [base.py](/workspace/starlette/middleware/base.py:103) to re-raise background-task exceptions after middleware completion, plus a deterministic regression test in [test_base.py](/workspace/tests/middleware/test_base.py:300).
+
+Validation:
+
+- Focused asyncio test passed.
+- Adjacent response-ordering regression passed.
+- Trio execution was unavailable because sandbox socket creation is prohibited.
+- `git diff --check` passed.

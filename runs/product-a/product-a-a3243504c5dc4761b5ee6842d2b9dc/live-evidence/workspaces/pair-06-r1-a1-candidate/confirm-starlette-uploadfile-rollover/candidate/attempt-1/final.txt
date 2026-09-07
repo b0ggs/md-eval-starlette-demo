@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added predictive spool rollover detection so threshold-crossing writes use the thread pool while in-memory writes retain the fast path. Added focused coverage.
+
+Focused asyncio test passed. Trio was blocked by sandbox socket permissions; the adjacent regression hung and was stopped.

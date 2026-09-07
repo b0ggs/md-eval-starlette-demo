@@ -1,0 +1,7 @@
+Implemented TestClient debug response support.
+
+- Full `info` mappings are exposed at `response.extensions["http.response.debug"]`.
+- Template/context compatibility is preserved when both keys exist.
+- Added regression coverage for arbitrary debug data and template responses.
+
+Validation: syntax parsing and `git diff --check` passed. Pytest was blocked by an environment-wide TestClient hang; the existing ASGI3 test hangs identically, and `jinja2`, Ruff, and mypy are unavailable.

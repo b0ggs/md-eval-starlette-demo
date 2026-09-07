@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to strip only exact or segment-boundary root paths, preserving `/root-queue/path`. Added unit and routing regression tests.
+
+Verification: 10 utility tests passed, direct route matching passed, compilation and diff checks passed. The TestClient integration test hangs under the repository’s installed dependency set.

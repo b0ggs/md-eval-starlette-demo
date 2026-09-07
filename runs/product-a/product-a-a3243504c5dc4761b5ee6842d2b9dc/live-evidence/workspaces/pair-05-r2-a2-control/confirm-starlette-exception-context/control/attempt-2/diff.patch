@@ -1,0 +1,110 @@
+diff --git a/starlette/middleware/base.py b/starlette/middleware/base.py
+index 577918e..7ed3994 100644
+--- a/starlette/middleware/base.py
++++ b/starlette/middleware/base.py
+@@ -156,7 +156,10 @@ class BaseHTTPMiddleware:
+                 if app_exc is not None:
+                     nonlocal exception_already_raised
+                     exception_already_raised = True
+-                    raise app_exc
++                    cause = app_exc.__cause__ or (
++                        app_exc.__context__ if not app_exc.__suppress_context__ else None
++                    )
++                    raise app_exc from cause
+                 raise RuntimeError("No response returned.")
+ 
+             assert message["type"] == "http.response.start"
+diff --git a/tests/middleware/test_base.py b/tests/middleware/test_base.py
+index d4548e6..5e88772 100644
+--- a/tests/middleware/test_base.py
++++ b/tests/middleware/test_base.py
+@@ -342,6 +342,37 @@ def test_exception_can_be_caught(test_client_factory: TestClientFactory) -> None
+     assert response.text == "TEST"
+ 
+ 
++@pytest.mark.anyio
++@pytest.mark.parametrize("explicit_cause", [False, True])
++async def test_application_exception_chain_is_preserved(explicit_cause: bool) -> None:
++    async def error_app(scope: Scope, receive: Receive, send: Send) -> None:
++        try:
++            raise ValueError("The root exception")
++        except ValueError as exc:
++            if explicit_cause:
++                raise RuntimeError("The application exception") from exc
++            raise RuntimeError("The application exception")
++
++    async def passthrough(request: Request, call_next: RequestResponseEndpoint) -> Response:
++        return await call_next(request)
++
++    async def receive() -> Message:
++        raise AssertionError("receive should not be called")  # pragma: no cover
++
++    async def send(message: Message) -> None:
++        raise AssertionError("send should not be called")  # pragma: no cover
++
++    app = BaseHTTPMiddleware(error_app, dispatch=passthrough)
++    with pytest.raises(RuntimeError) as exc_info:
++        await app({"type": "http"}, receive, send)
++
++    visible_context = exc_info.value.__cause__ or (
++        None if exc_info.value.__suppress_context__ else exc_info.value.__context__
++    )
++    assert isinstance(visible_context, ValueError)
++    assert str(visible_context) == "The root exception"
++
++
+ @pytest.mark.anyio
+ async def test_do_not_block_on_background_tasks() -> None:
+     response_complete = anyio.Event()
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,4 @@
++{
++  "tests/middleware/test_base.py::test_application_exception_chain_is_preserved[trio-False]": true,
++  "tests/middleware/test_base.py::test_application_exception_chain_is_preserved[trio-True]": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,9 @@
++[
++  "tests/middleware/test_base.py::test_application_exception_chain_is_preserved[asyncio-False]",
++  "tests/middleware/test_base.py::test_application_exception_chain_is_preserved[asyncio-True]",
++  "tests/middleware/test_base.py::test_application_exception_chain_is_preserved[trio-False]",
++  "tests/middleware/test_base.py::test_application_exception_chain_is_preserved[trio-True]",
++  "tests/middleware/test_base.py::test_do_not_block_on_background_tasks[asyncio]",
++  "tests/middleware/test_base.py::test_run_background_tasks_even_if_client_disconnects[asyncio]",
++  "tests/middleware/test_base.py::test_run_context_manager_exit_even_if_client_disconnects[asyncio]"
++]

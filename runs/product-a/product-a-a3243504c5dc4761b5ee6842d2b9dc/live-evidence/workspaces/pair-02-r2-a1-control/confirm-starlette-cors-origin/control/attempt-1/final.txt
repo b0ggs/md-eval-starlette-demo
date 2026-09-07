@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated CORS simple responses to:
+
+- Echo the request origin when wildcard origins and credentials are allowed.
+- Preserve existing `Vary` values and append `Origin`.
+- Retain existing cookie and non-credentialed wildcard behavior.
+
+Added regression coverage. Direct ASGI checks and `git diff --check` passed. The focused pytest run hung under the available mismatched pytest environment.

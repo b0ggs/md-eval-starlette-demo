@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a07c93-f077-79e1-8f96-a84ccff3a0aa"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"I’ll first read `CODER.md` and `.issue-contract.md` in full, then inspect only the repository areas needed to carry out and verify that contract. I’ll avoid all repository-management and status-artifact actions you excluded."}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"The initial filesystem command was unavailable because the command host did not start. I’m retrying the required read with a minimal command; if the workspace remains inaccessible, that will be the concrete blocker."}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"BLOCKED\n\nThe filesystem command host is disabled, so I could not read the required `CODER.md` and `.issue-contract.md`. I made no repository changes."}}
+{"type":"turn.completed","usage":{"input_tokens":19728,"cached_input_tokens":18304,"cache_write_input_tokens":0,"output_tokens":368,"reasoning_output_tokens":84}}

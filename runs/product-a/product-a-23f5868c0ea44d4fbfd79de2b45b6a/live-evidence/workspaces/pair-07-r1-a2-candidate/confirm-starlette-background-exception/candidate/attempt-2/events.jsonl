@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a07c93-d038-7f91-b069-0c7bcbd729f5"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"I’ll read `CODER.md` and `.issue-contract.md` in full first, then limit all inspection, edits, and verification to the contract’s scope."}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"The initial repository read was rejected because the command host was unavailable; I’m retrying the same bounded read once."}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"BLOCKED\n\nRepository command execution is unavailable (“code-mode host is disabled”), so I could not read `CODER.md` and `.issue-contract.md` as required. No files were changed."}}
+{"type":"turn.completed","usage":{"input_tokens":20360,"cached_input_tokens":19456,"cache_write_input_tokens":0,"output_tokens":372,"reasoning_output_tokens":73}}

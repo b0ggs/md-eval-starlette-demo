@@ -1,0 +1,3 @@
+BLOCKED
+
+The repository command runner is disabled (“code-mode host is disabled”), including the one permitted retry. I could not read `CODER.md` and `.issue-contract.md`, so I made no changes.

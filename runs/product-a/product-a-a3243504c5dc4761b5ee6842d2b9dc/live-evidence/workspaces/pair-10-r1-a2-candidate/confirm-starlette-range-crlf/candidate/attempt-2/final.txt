@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+Updated multipart byte-range responses to:
+
+- Use CRLF framing and a standards-compliant terminal boundary.
+- Calculate exact `Content-Length` for GET, HEAD, reordered ranges, and small chunks.
+- Add parser and byte-length regression coverage.
+
+Verification gap: focused pytest runs timed out without output; `ruff` and `uv` were unavailable.

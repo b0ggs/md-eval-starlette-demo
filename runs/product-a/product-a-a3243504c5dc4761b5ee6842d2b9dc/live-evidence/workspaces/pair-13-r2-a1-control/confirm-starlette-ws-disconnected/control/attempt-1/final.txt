@@ -1,0 +1,9 @@
+Implemented the WebSocket disconnected-state contract.
+
+- Added `WebSocketDisconnected`, a distinct `RuntimeError` subclass.
+- Low-level receive/send now raise it after disconnection, preserving messages.
+- Receive helpers raise it when the application side is not connected.
+- Invalid modes/protocol errors remain `RuntimeError`; peer disconnects remain `WebSocketDisconnect`.
+- Updated regression tests.
+
+Validation: direct exception checks and compilation passed; one pytest smoke test passed. TestClient-based tests timed out in this environment.

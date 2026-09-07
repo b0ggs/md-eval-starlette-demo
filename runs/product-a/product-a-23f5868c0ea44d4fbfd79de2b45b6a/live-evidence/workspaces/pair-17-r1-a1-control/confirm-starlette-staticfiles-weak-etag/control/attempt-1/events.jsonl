@@ -1,0 +1,8 @@
+{"type":"thread.started","thread_id":"01a07c8e-eebd-7412-bda1-14217c0a5084"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"I’ll first read `CODER.md` and `.issue-contract.md` in full, then I’ll limit inspection, implementation, and verification to the contract’s scope."}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"The initial repository read was blocked by a transient tool-host error; I’m retrying the same read-only step without taking any repository action."}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"The execution host remains unavailable, so I can’t yet access the required instruction files. I’ll make one minimal availability check before deciding whether this is a hard blocker."}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"BLOCKED\n\nThe repository execution host is disabled, so I could not read the required `CODER.md` and `.issue-contract.md` files or safely execute the issue contract. No repository changes were made."}}
+{"type":"turn.completed","usage":{"input_tokens":26616,"cached_input_tokens":12800,"cache_write_input_tokens":0,"output_tokens":505,"reasoning_output_tokens":119}}

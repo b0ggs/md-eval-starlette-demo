@@ -1,0 +1,5 @@
+2026-09-07T17:26:26.603450Z ERROR codex_core::tools::router: error=exec_command failed: CreateProcess { message: "Rejected(\"`/usr/bin/bash -lc \\\"rm -rf /workspace/starlette/__pycache__ /workspace/starlette/middleware/__pycache__ /workspace/tests/__pycache__ && git status --short && git diff --check && sed -n '410,575p' starlette/responses.py && sed -n '700,905p' tests/test_responses.py\\\"` rejected: rm -f style commands are not permitted. Use a safer approach\")" }
+2026-09-07T17:27:31.127442Z ERROR codex_core::tools::router: error=write_stdin failed: Unknown process id 11850
+2026-09-07T17:27:36.631274Z ERROR codex_core::tools::router: error=write_stdin failed: Unknown process id 30129
+2026-09-07T17:27:41.368192Z ERROR codex_core::tools::router: error=write_stdin failed: Unknown process id 91880
+2026-09-07T17:27:46.015285Z ERROR codex_core::tools::router: error=write_stdin failed: Unknown process id 85150

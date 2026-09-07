@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated HTTP middleware exception re-raising to preserve application causes/contexts while hiding internal stream exceptions. Added regression coverage, including `from None`.
+
+Focused asyncio tests: 3 passed. Trio was unavailable due sandbox socket restrictions.

@@ -1,0 +1,54 @@
+diff --git a/starlette/middleware/base.py b/starlette/middleware/base.py
+index 577918e..683be78 100644
+--- a/starlette/middleware/base.py
++++ b/starlette/middleware/base.py
+@@ -156,7 +156,7 @@ class BaseHTTPMiddleware:
+                 if app_exc is not None:
+                     nonlocal exception_already_raised
+                     exception_already_raised = True
+-                    raise app_exc
++                    raise app_exc from app_exc.__cause__ or app_exc.__context__
+                 raise RuntimeError("No response returned.")
+ 
+             assert message["type"] == "http.response.start"
+diff --git a/tests/middleware/test_base.py b/tests/middleware/test_base.py
+index d4548e6..ab9f975 100644
+--- a/tests/middleware/test_base.py
++++ b/tests/middleware/test_base.py
+@@ -342,6 +342,36 @@ def test_exception_can_be_caught(test_client_factory: TestClientFactory) -> None
+     assert response.text == "TEST"
+ 
+ 
++@pytest.mark.parametrize("explicit_cause", [False, True])
++def test_preserves_application_exception_chain(
++    test_client_factory: TestClientFactory,
++    explicit_cause: bool,
++) -> None:
++    root_error = LookupError("application context")
++
++    async def error_endpoint(_: Request) -> None:
++        try:
++            raise root_error
++        except LookupError as exc:
++            if explicit_cause:
++                raise RuntimeError("application error") from exc
++            raise RuntimeError("application error")
++
++    async def passthrough(request: Request, call_next: RequestResponseEndpoint) -> Response:
++        return await call_next(request)
++
++    app = Starlette(
++        middleware=[Middleware(BaseHTTPMiddleware, dispatch=passthrough)],
++        routes=[Route("/", error_endpoint)],
++    )
++
++    client = test_client_factory(app)
++    with pytest.raises(RuntimeError, match="application error") as exc_info:
++        client.get("/")
++
++    assert (exc_info.value.__cause__ or exc_info.value.__context__) is root_error
++
++
+ @pytest.mark.anyio
+ async def test_do_not_block_on_background_tasks() -> None:
+     response_complete = anyio.Event()

@@ -1,0 +1,9 @@
+IMPLEMENTED
+
+TestClient now:
+
+- Preserves complete `http.response.debug` info in `response.extensions`.
+- Retains `response.template` and `response.context` compatibility.
+- Handles debug mappings without template/context keys.
+
+Added focused regression tests. Syntax and direct transport checks passed; pytest hangs on unchanged baseline TestClient tests in this environment.

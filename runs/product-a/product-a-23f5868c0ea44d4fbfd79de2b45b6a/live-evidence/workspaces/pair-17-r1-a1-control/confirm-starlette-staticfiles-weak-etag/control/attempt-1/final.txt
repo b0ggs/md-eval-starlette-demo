@@ -1,0 +1,3 @@
+BLOCKED
+
+The repository execution host is disabled, so I could not read the required `CODER.md` and `.issue-contract.md` files or safely execute the issue contract. No repository changes were made.

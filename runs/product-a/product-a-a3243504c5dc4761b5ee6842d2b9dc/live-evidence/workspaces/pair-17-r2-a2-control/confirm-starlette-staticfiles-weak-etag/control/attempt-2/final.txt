@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated weak ETag parsing to accept HTTP horizontal-tab whitespace. Added regression tests covering matching tags in first, middle, and last positions with `304` empty responses.
+
+Direct response checks and `git diff --check` passed. Full pytest was unavailable due the sandbox stalling on unchanged AnyIO file-lookup tests.

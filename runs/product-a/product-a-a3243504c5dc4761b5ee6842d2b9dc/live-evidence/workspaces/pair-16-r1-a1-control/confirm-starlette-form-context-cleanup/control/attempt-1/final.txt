@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` remains awaitable and now supports `async with`, closing all uploaded files on normal or exceptional exit.
+
+Added regression tests; focused asyncio tests pass. Trio execution was unavailable due sandbox socket restrictions.

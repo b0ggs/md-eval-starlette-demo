@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated `BaseHTTPMiddleware` to propagate background-task exceptions after response completion. Added a focused regression test.
+
+Verification:
+
+- Focused asyncio test passed.
+- Adjacent background-task ordering test passed.
+- Trio was unavailable due sandbox socket restrictions.
+- `git diff --check` passed.

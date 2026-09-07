@@ -1,0 +1,3 @@
+BLOCKED
+
+The command host is disabled, so I could not read `CODER.md` and `.issue-contract.md`. One bounded retry failed identically; acting without reading them would violate your instructions.

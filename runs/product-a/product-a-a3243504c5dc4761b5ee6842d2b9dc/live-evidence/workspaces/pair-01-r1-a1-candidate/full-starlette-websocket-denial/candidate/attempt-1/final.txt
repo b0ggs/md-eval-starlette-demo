@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated streamed and file WebSocket denial responses to emit valid denial events, avoid HTTP-only scope behavior, preserve HTTP paths, and run streaming backgrounds once. Added focused pytest coverage.
+
+Static compilation and diff checks passed. Pytest verification was blocked by the environment hanging on both new and unchanged tests; `ruff` was unavailable.

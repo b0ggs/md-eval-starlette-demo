@@ -1,0 +1,17 @@
+Read CODER.md and .issue-contract.md completely before acting.
+
+Execute only the issue contract in this disposable evaluation repository.
+Repository inspection is allowed. Commits, branches, pushes, pull requests,
+deployments, and publication artifacts are not authorized. Do not create or
+update issue-status, workpad, task-status, packet, checklist, or handoff files.
+
+At the end, the first non-empty line of your final response must be exactly one
+of:
+
+IMPLEMENTED
+NEEDS_CLARIFICATION
+BLOCKED
+
+If CODER.md requires TASK_COMPLETE after successful implementation, place
+TASK_COMPLETE later in the response. Briefly state what you changed or the one
+specific clarification or blocker. Do not include secrets.

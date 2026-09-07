@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Clamped oversized suffix ranges to byte zero and added a regression test verifying the full-body `206`, `Content-Range`, and `Content-Length`.
+
+`git diff --check` passed. Pytest could not complete due runner/plugin loading issues.

@@ -1,0 +1,3 @@
+BLOCKED
+
+The repository shell host is disabled, so I could not read `CODER.md` and `.issue-contract.md`. Per your instructions, I made no changes.

@@ -1,0 +1,3 @@
+BLOCKED
+
+The repository command host is disabled. After one retry, I could not read `CODER.md` or `.issue-contract.md`, so I made no changes.

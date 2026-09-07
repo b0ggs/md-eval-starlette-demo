@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added identity-response negotiation so compressible responses include `Vary: Accept-Encoding` without altering bodies or existing encodings. Added coverage for thresholds, identity streaming, and pre-encoded responses.
+
+Direct ASGI and syntax checks passed. The TestClient suite was blocked by sandbox socket restrictions.

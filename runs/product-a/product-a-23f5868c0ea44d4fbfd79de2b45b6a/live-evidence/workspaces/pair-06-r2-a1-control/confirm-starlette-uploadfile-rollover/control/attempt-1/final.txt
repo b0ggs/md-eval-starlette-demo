@@ -1,0 +1,1 @@
+Unable to proceed: the command host is disabled, so I can’t read the workspace instructions or identify the repository task. Please restore workspace tool access or provide the task and relevant files directly.

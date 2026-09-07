@@ -1,0 +1,67 @@
+diff --git a/starlette/middleware/cors.py b/starlette/middleware/cors.py
+index 36ba9f9..4994ed2 100644
+--- a/starlette/middleware/cors.py
++++ b/starlette/middleware/cors.py
+@@ -68,6 +68,7 @@ class CORSMiddleware:
+         self.allow_headers = [h.lower() for h in allow_headers]
+         self.allow_all_origins = allow_all_origins
+         self.allow_all_headers = allow_all_headers
++        self.allow_credentials = allow_credentials
+         self.preflight_explicit_allow_origin = preflight_explicit_allow_origin
+         self.allow_origin_regex = compiled_allow_origin_regex
+         self.allow_private_network = allow_private_network
+@@ -163,9 +164,9 @@ class CORSMiddleware:
+         origin = request_headers["Origin"]
+         has_cookie = "cookie" in request_headers
+ 
+-        # If request includes any cookie headers, then we must respond
+-        # with the specific origin instead of '*'.
+-        if self.allow_all_origins and has_cookie:
++        # If credentials are allowed or the request includes any cookie headers,
++        # then we must respond with the specific origin instead of '*'.
++        if self.allow_all_origins and (self.allow_credentials or has_cookie):
+             self.allow_explicit_origin(headers, origin)
+ 
+         # If we only allow specific origins, then we have to mirror back
+diff --git a/tests/middleware/test_cors.py b/tests/middleware/test_cors.py
+index cbee7d6..4da8463 100644
+--- a/tests/middleware/test_cors.py
++++ b/tests/middleware/test_cors.py
+@@ -48,7 +48,7 @@ def test_cors_allow_all(
+     response = client.get("/", headers=headers)
+     assert response.status_code == 200
+     assert response.text == "Homepage"
+-    assert response.headers["access-control-allow-origin"] == "*"
++    assert response.headers["access-control-allow-origin"] == "https://example.org"
+     assert response.headers["access-control-expose-headers"] == "X-Status"
+     assert response.headers["access-control-allow-credentials"] == "true"
+ 
+@@ -470,13 +470,18 @@ def test_cors_vary_header_is_properly_set_for_credentialed_request(
+ 
+     app = Starlette(
+         routes=[Route("/", endpoint=homepage)],
+-        middleware=[Middleware(CORSMiddleware, allow_origins=["*"])],
++        middleware=[Middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True)],
+     )
+     client = test_client_factory(app)
+ 
+-    response = client.get("/", headers={"Cookie": "foo=bar", "Origin": "https://someplace.org"})
+-    assert response.status_code == 200
+-    assert response.headers["vary"] == "Accept-Encoding, Origin"
++    for headers in (
++        {"Origin": "https://someplace.org"},
++        {"Cookie": "foo=bar", "Origin": "https://someplace.org"},
++    ):
++        response = client.get("/", headers=headers)
++        assert response.status_code == 200
++        assert response.headers["access-control-allow-origin"] == "https://someplace.org"
++        assert response.headers["vary"] == "Accept-Encoding, Origin"
+ 
+ 
+ def test_cors_vary_header_is_properly_set_when_allow_origins_is_not_wildcard(
+diff --git a/starlette/middleware/__pycache__/cors.cpython-311.pyc b/starlette/middleware/__pycache__/cors.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/cors.cpython-311.pyc added
+diff --git a/tests/middleware/__pycache__/test_cors.cpython-311.pyc b/tests/middleware/__pycache__/test_cors.cpython-311.pyc
+new file mode 100644
+Binary file tests/middleware/__pycache__/test_cors.cpython-311.pyc added

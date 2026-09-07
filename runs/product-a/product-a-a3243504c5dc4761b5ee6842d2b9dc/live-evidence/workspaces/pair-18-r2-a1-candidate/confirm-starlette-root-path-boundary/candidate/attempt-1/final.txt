@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to remove `root_path` only at a complete segment boundary or exact match. Added routing coverage for `/root-queue/path` under `/root`.
+
+`git diff --check` passed. Focused pytest collection hit an unrelated dependency warning; the corrected retry timed out after 30 seconds.

@@ -1,0 +1,8 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to CORS middleware.
+
+- Opted-in private-network preflights return `Access-Control-Allow-Private-Network: true`.
+- Default configuration rejects them with HTTP 400 and no allow header.
+- Added tests and documentation.
+- Direct ASGI checks passed; pytest’s TestClient hangs on both existing and new tests in this environment.

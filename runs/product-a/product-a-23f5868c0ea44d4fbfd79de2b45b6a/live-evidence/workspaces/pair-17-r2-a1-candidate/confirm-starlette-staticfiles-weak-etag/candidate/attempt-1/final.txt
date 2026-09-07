@@ -1,0 +1,3 @@
+BLOCKED
+
+The execution host is disabled, so I could not read the mandatory `CODER.md` and `.issue-contract.md` files. No repository changes were made.

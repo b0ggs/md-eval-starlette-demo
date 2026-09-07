@@ -1,0 +1,53 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index 90bd346..752c875 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -2,7 +2,6 @@ from __future__ import annotations
+ 
+ import asyncio
+ import functools
+-import re
+ import sys
+ import typing
+ from contextlib import contextmanager
+@@ -85,5 +84,8 @@ def collapse_excgroups() -> typing.Generator[None, None, None]:
+ 
+ def get_route_path(scope: Scope) -> str:
+     root_path = scope.get("root_path", "")
+-    route_path = re.sub(r"^" + root_path, "", scope["path"])
++    route_path = scope["path"]
++    if root_path and route_path.startswith(root_path):
++        if route_path == root_path or route_path[len(root_path)] == "/":
++            return route_path[len(root_path) :]
+     return route_path
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index 9fa44de..db6e875 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -1221,6 +1221,12 @@ echo_paths_routes = [
+         name="path",
+         methods=["GET"],
+     ),
++    Route(
++        "/root-queue/path",
++        functools.partial(echo_paths, name="root-queue"),
++        name="root-queue",
++        methods=["GET"],
++    ),
+     Mount("/asgipath", app=functools.partial(pure_asgi_echo_paths, name="asgipath")),
+     Mount(
+         "/sub",
+@@ -1247,6 +1253,13 @@ def test_paths_with_root_path(test_client_factory: TestClientFactory) -> None:
+         "path": "/root/path",
+         "root_path": "/root",
+     }
++    response = client.get("/root-queue/path")
++    assert response.status_code == 200
++    assert response.json() == {
++        "name": "root-queue",
++        "path": "/root-queue/path",
++        "root_path": "/root",
++    }
+     response = client.get("/root/asgipath/")
+     assert response.status_code == 200
+     assert response.json() == {

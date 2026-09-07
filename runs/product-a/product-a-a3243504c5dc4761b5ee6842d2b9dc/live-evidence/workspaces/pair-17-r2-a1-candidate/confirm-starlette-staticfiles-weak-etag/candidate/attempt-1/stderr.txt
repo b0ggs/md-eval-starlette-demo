@@ -1,0 +1,1 @@
+2026-09-07T16:44:05.812373Z ERROR codex_core::tools::router: error=failed to parse function arguments: invalid value: integer `2149580367`, expected i32 at line 1 column 24

@@ -1,0 +1,144 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index e621900..6370f8a 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -663,20 +663,35 @@ class MutableHeaders(Headers):
+         self["vary"] = vary
+ 
+ 
+-class State:
++class State(MutableMapping[str, Any]):
+     """
+     An object that can be used to store arbitrary state.
+ 
+     Used for `request.state` and `app.state`.
+     """
+ 
+-    _state: dict[str, Any]
++    _state: MutableMapping[str, Any]
+ 
+-    def __init__(self, state: dict[str, Any] | None = None):
++    def __init__(self, state: MutableMapping[str, Any] | None = None):
+         if state is None:
+             state = {}
+         super().__setattr__("_state", state)
+ 
++    def __getitem__(self, key: str) -> Any:
++        return self._state[key]
++
++    def __setitem__(self, key: str, value: Any) -> None:
++        self._state[key] = value
++
++    def __delitem__(self, key: str) -> None:
++        del self._state[key]
++
++    def __iter__(self) -> Iterator[str]:
++        return iter(self._state)
++
++    def __len__(self) -> int:
++        return len(self._state)
++
+     def __setattr__(self, key: Any, value: Any) -> None:
+         self._state[key] = value
+ 
+diff --git a/tests/test_requests.py b/tests/test_requests.py
+index a2fa384..e6cafe8 100644
+--- a/tests/test_requests.py
++++ b/tests/test_requests.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import sys
++from collections import UserDict
+ from collections.abc import Iterator
+ from typing import Any
+ 
+@@ -290,18 +291,30 @@ def test_request_is_disconnected(test_client_factory: TestClientFactory) -> None
+ 
+ 
+ def test_request_state_object() -> None:
+-    scope = {"state": {"old": "foo"}}
++    state = UserDict({"old": "foo"})
++    scope = {"state": state}
+ 
+     s = State(scope["state"])
+ 
+     s.new = "value"
+     assert s.new == "value"
++    assert state["new"] == "value"
++
++    s["mapped"] = "value"
++    assert s["mapped"] == "value"
++    assert state["mapped"] == "value"
++    assert list(s) == ["old", "new", "mapped"]
++    assert len(s) == 3
+ 
+     del s.new
++    del s["mapped"]
+ 
+     with pytest.raises(AttributeError):
+         s.new
+ 
++    with pytest.raises(KeyError):
++        s["mapped"]
++
+ 
+ def test_request_state(test_client_factory: TestClientFactory) -> None:
+     async def app(scope: Scope, receive: Receive, send: Send) -> None:
+@@ -315,6 +328,18 @@ def test_request_state(test_client_factory: TestClientFactory) -> None:
+     assert response.json() == {"state.example": 123}
+ 
+ 
++def test_request_state_preserves_mutable_mapping() -> None:
++    shared: list[str] = []
++    state: UserDict[str, Any] = UserDict({"shared": shared})
++    scope: Scope = {"type": "http", "state": state}
++    request = Request(scope)
++
++    request.state["new"] = "value"
++
++    assert state["new"] == "value"
++    assert request.state["shared"] is shared
++
++
+ def test_request_cookies(test_client_factory: TestClientFactory) -> None:
+     async def app(scope: Scope, receive: Receive, send: Send) -> None:
+         request = Request(scope, receive)
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,4 @@
++[
++  "tests/test_requests.py::test_request_state_object",
++  "tests/test_requests.py::test_request_state_preserves_mutable_mapping"
++]

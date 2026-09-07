@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`Request.form()` is now directly awaitable and supports `async with`, closing all parsed uploads on normal or exceptional exit. Added regression coverage for multiple files and raised context bodies.
+
+Focused pytest verification was unavailable: `uv` was missing and the fallback pytest run timed out without output. Diff validation passed.

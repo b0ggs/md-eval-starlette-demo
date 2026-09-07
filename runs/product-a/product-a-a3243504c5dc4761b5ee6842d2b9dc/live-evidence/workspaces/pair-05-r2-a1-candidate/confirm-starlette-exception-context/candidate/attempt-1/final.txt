@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Preserved application exception chaining through `BaseHTTPMiddleware` and added regression coverage for explicit and implicit causes.
+
+Verification: `git diff --check` passed. Focused pytest timed out after 30 seconds without output; no further retries were attempted per repository instructions.

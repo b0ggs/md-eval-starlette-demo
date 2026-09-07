@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated `get_route_path()` to strip `root_path` only at complete segment boundaries or exact matches. Added unit and routing regression coverage for `/root-queue/path`.
+
+Verification:
+
+- 7 utility tests passed.
+- Direct ASGI routing regression passed.
+- Syntax and diff checks passed.
+- TestClient-based tests hang due to the repository’s dependency environment; an unchanged comparison test hangs identically.

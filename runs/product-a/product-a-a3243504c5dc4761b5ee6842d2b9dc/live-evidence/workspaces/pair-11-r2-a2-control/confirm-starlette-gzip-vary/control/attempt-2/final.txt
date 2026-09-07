@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated gzip middleware so compressible identity responses add `Vary: Accept-Encoding` without altering bodies or existing encodings. Added threshold, streaming, and pre-encoded coverage.
+
+Direct ASGI checks passed; pytest collection passed. Runtime pytest was blocked by the environment hanging on plain `TestClient` startup.

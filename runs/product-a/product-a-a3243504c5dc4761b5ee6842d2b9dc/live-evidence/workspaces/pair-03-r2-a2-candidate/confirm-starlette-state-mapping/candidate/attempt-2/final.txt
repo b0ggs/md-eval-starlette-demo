@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+`State` now implements `MutableMapping` with keyed get/set/delete, iteration, and length while preserving attribute access and the original backing mapping/shared values.
+
+Focused test passed. Diff check passed. Adjacent TestClient test timed out under pytest 9.0.2; project pins 8.4.1. Ruff was unavailable.

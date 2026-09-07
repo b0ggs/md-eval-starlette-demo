@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `UploadFile.write()` to anticipate spooled-file rollover and use the thread pool before disk I/O begins, while preserving the in-memory fast path. Added regression coverage for both behaviors.
+
+Focused test passed; compilation and diff checks passed. Ruff/mypy were unavailable, and broader AnyIO tests were limited by sandbox thread/socket restrictions.

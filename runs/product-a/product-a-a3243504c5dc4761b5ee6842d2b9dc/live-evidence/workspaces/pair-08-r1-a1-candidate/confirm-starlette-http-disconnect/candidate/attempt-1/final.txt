@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+ASGI 2.4+ streaming now converts send-side `OSError` to `ClientDisconnect`, stops body consumption, and skips `receive`. Added focused regression coverage.
+
+Tests:
+
+- New send-disconnect test passed on asyncio.
+- Existing receive-disconnect regression passed.
+- Trio could not initialize due sandbox socket permissions.
+- `git diff --check` passed.

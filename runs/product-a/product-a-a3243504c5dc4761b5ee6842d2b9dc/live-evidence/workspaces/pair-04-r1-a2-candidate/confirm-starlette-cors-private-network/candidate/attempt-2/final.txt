@@ -1,0 +1,8 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to CORS middleware. Private-network preflights now:
+
+- Succeed with `Access-Control-Allow-Private-Network: true` when opted in.
+- Fail without that header by default.
+
+Added focused tests and documentation. `git diff --check` passed. Pytest verification was inconclusive because `uv` was unavailable and the bounded direct retry produced no result.

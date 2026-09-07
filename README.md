@@ -9,42 +9,50 @@ experiment without credentials, network access, or model calls.
 This is the standalone demonstration only. It is not an instruction optimizer,
 a hosted benchmark, or a configurable toolkit for new experiments.
 
-## Fresh Product A result
+## Fresh Product A results
 
-The fixed Product A workflow completed a new approved run on September 6,
+The fixed Product A workflow completed its latest approved run on September 7,
 2026. It made exactly 72 fresh subject calls across all 18 tasks, with zero
 replacements and observed peak concurrency of 12. The
-[generated report](runs/product-a/product-a-28d43ee1189e43c7a2b987689aa923/REPORT.md),
-[approved request](runs/product-a/product-a-28d43ee1189e43c7a2b987689aa923/REQUEST.json),
-and [raw evidence](runs/product-a/product-a-28d43ee1189e43c7a2b987689aa923/live-evidence/)
+[generated report](runs/product-a/product-a-a3243504c5dc4761b5ee6842d2b9dc/REPORT.md),
+[approved request](runs/product-a/product-a-a3243504c5dc4761b5ee6842d2b9dc/REQUEST.json),
+and [raw evidence](runs/product-a/product-a-a3243504c5dc4761b5ee6842d2b9dc/live-evidence/)
 are preserved together. The request SHA-256 is
-`2fde00f0154c9051a692414c9a55df04f86e2b59e241d07e533ba0f9d95027eb`;
+`34f1e35d5b9e7f5e5f89d492fadc3dd2509a7b436375c633ef558235403b00a9`;
 the generated report SHA-256 is
-`4909adaf1dcb63bf908f35dce688a255d02a7441f893b33df4aa7de5aa2d9a28`.
+`38007d789f0c6ed3e2ec2ed2d1fb4f0e021de44e1e22467cd55121d1dac2840e`.
 
 | Arm | Failed | Passed |
 |---|---:|---:|
 | MD | **4/36** | 32/36 |
-| No-MD | **2/36** | 34/36 |
+| No-MD | **7/36** | 29/36 |
 
-The report lists all six failed attempts and their mechanical reasons. Fourteen
-tasks had both usable paired repeats; the other four tasks were excluded in
+The report lists all eleven failed attempts and their mechanical reasons. Thirteen
+tasks had both usable paired repeats; the other five tasks were excluded in
 full, so no lone surviving repeat entered either resource analysis.
 
 | Endpoint | Eligible tasks | Reduction with MD | 95% reduction CI | Two-sided p | Classification |
 |---|---:|---:|---:|---:|---|
-| Wall time | 14 | 52.1051% | 44.8225%–58.4265% | 4.5821128e-08 | **Significantly favorable** |
-| Tokens | 14 | 36.0641% | 28.2553%–43.0229% | 1.3304513e-06 | **Significantly favorable** |
+| Wall time | 13 | 46.3731% | 37.7445%–53.8057% | 9.8247125e-07 | **Significantly favorable** |
+| Tokens | 13 | 35.3073% | 23.4958%–45.2952% | 0.00010583914 | **Significantly favorable** |
 
 These resource results use the complete-task rule frozen in the approved
-request before launch. They do not override the top-level correctness result:
-MD had four failed attempts and No-MD had two.
+request before launch. Across the two completed, verified fresh runs,
+[RESULTS.md](RESULTS.md) totals MD at **8/72 failed** and No-MD at **9/72
+failed**. Those correctness counts are descriptive observed outcomes; no
+correctness hypothesis test is reported. The confidence intervals, p-values,
+and classifications above are instead the latest run's request-frozen resource
+inference over its 13 complete eligible tasks, and resource results are not
+pooled across runs.
 
 An [earlier prepared request](runs/product-a/product-a-b909824f58ec4029b2e63cb74c12a8/)
 was approved and consumed but produced no execution-evidence directory and
 made zero subject calls. Its request, approval, and one-use consumption record
-are retained for auditability but are not part of the experimental results
-above.
+are retained for auditability but are not part of the experimental results.
+An [incomplete September 7 attempt](runs/product-a/product-a-23f5868c0ea44d4fbfd79de2b45b6a/)
+encountered the now-corrected code-mode-host runtime fault before task commands
+could execute; its available evidence is preserved, but it has no verified
+report and is explicitly uncounted.
 
 ## Running results
 
@@ -200,8 +208,10 @@ request unapproved, makes no model calls, and exits successfully. After `YES`,
 the command binds approval to that request hash, runs the sealed experiment,
 verifies the evidence, writes the run report, and refreshes
 [RESULTS.md](RESULTS.md). The terminal may be quiet for long stretches after
-approval; leave it running. A completed example took about 52 minutes, though
-actual runtime and account charges vary.
+approval; leave it running. With the public runtime cached, the September 7
+invocation reached the approval prompt in 70.631 seconds without model calls;
+after approval, its sealed execution took 4,146.581 seconds (about 69 minutes).
+Actual preparation time, runtime, and account charges vary.
 
 Each invocation creates a new `runs/product-a/product-a-<nonce>/` directory.
 A successful run contains:
@@ -348,8 +358,8 @@ authentication, access the network, or invoke a model.
 - `RESULTS.md` — generated descriptive tally of verified fresh runs, with the
   bundled historical example kept separate.
 - `docs/starlette-demonstration.md` — detailed case study and task taxonomy.
-- `runs/product-a/product-a-28d43ee1189e43c7a2b987689aa923/` — current
-  fresh Product A request, approval, verified evidence, analysis, and report.
+- `runs/product-a/` — per-run requests, approvals, preserved evidence,
+  analyses, and generated reports.
 - `reports/STARLETTE_EIGHTEEN_TWO_REPEAT_V2_REPORT.md` — bundled historical v2
   report.
 - `tasks/` — exactly the 18 demonstrated fixtures plus their integrity ledgers.

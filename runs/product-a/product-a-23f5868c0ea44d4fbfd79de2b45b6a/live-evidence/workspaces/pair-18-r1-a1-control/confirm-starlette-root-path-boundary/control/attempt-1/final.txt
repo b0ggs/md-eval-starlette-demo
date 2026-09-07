@@ -1,0 +1,1 @@
+Blocked: the workspace command/filesystem runner is disabled, so I cannot read `CODER.md` or `.issue-contract.md` or safely implement the requested change. No files were modified.

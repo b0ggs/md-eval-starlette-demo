@@ -1,0 +1,758 @@
+diff --git a/starlette/_utils.py b/starlette/_utils.py
+index c50ebec..3d61267 100644
+--- a/starlette/_utils.py
++++ b/starlette/_utils.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import functools
++import ipaddress
+ import re
+ import sys
+ from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+@@ -31,8 +32,8 @@ if sys.version_info < (3, 11):  # pragma: no cover
+ T = TypeVar("T")
+ AwaitableCallable = Callable[..., Awaitable[T]]
+ 
+-# Reject characters that could make a Host header change the URL path or authority.
+-_HOST_RE = re.compile(r"^([a-z0-9._~%!$&'()*+,;=-]+|\[[a-f0-9]*:[a-f0-9.:]+\])(?::[0-9]+)?$", re.IGNORECASE)
++_REG_NAME_RE = re.compile(r"(?:[a-zA-Z0-9._~!$&'()*+,;=-]|%[a-fA-F0-9]{2})+")
++_IPV_FUTURE_RE = re.compile(r"v[a-fA-F0-9]+\.[a-zA-Z0-9._~!$&'()*+,;=:-]+", re.IGNORECASE)
+ 
+ 
+ @overload
+@@ -97,14 +98,57 @@ async def create_collapsing_task_group() -> AsyncGenerator[anyio.abc.TaskGroup,
+         raise exc from exc.__cause__ or context
+ 
+ 
++def parse_authority(authority: str) -> tuple[str, str | None] | None:
++    """Parse an authority into its host and optional port components."""
++    if authority.startswith("["):
++        closing_bracket = authority.find("]")
++        if closing_bracket == -1:
++            return None
++
++        host = authority[: closing_bracket + 1]
++        ip_literal = host[1:-1]
++        if _IPV_FUTURE_RE.fullmatch(ip_literal) is None:
++            try:
++                ipaddress.IPv6Address(ip_literal)
++            except ValueError:
++                return None
++
++        remainder = authority[closing_bracket + 1 :]
++        if not remainder:
++            return host, None
++        if not remainder.startswith(":"):
++            return None
++        port = remainder[1:]
++    else:
++        if authority.count(":") > 1:
++            return None
++        host, separator, port = authority.partition(":")
++        if _REG_NAME_RE.fullmatch(host) is None:
++            return None
++        if not separator:
++            return host, None
++
++    if not port or re.fullmatch(r"[0-9]+", port) is None:
++        return None
++    return host, port
++
++
++def is_valid_port(port: str | None) -> bool:
++    """Return whether a syntactically numeric port is in the URI port range."""
++    if port is None:
++        return True
++    normalized = port.lstrip("0") or "0"
++    return len(normalized) < 5 or (len(normalized) == 5 and normalized <= "65535")
++
++
+ def parse_host_header(host_header: str) -> str | None:
+     """Parse `host_header` into its host component.
+ 
+     The result excludes the port and preserves brackets around IPv6 addresses.
+     Invalid headers produce `None`.
+     """
+-    match = _HOST_RE.fullmatch(host_header)
+-    return match.group(1) if match is not None else None
++    parsed = parse_authority(host_header)
++    return parsed[0] if parsed is not None else None
+ 
+ 
+ def get_route_path(scope: Scope) -> str:
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index 01d49d5..d62f309 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -5,7 +5,7 @@ from shlex import shlex
+ from typing import Any, BinaryIO, Literal, NamedTuple, TypeVar, cast
+ from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
+ 
+-from starlette._utils import parse_host_header
++from starlette._utils import is_valid_port, parse_authority
+ from starlette.concurrency import run_in_threadpool
+ from starlette.types import Scope
+ 
+@@ -43,10 +43,13 @@ class URL:
+                     host_header = value.decode("latin-1")
+                     break
+ 
+-            if host_header is not None and parse_host_header(host_header) is not None:
++            parsed_host = parse_authority(host_header) if host_header is not None else None
++            if parsed_host is not None and is_valid_port(parsed_host[1]):
+                 netloc = host_header
+             elif server is not None:
+                 host, port = server
++                if ":" in host and not host.startswith("["):
++                    host = f"[{host}]"
+                 default_port = {"http": 80, "https": 443, "ws": 80, "wss": 443}[scheme]
+                 netloc = host if port == default_port else f"{host}:{port}"
+             else:
+diff --git a/starlette/middleware/httpsredirect.py b/starlette/middleware/httpsredirect.py
+index a835906..1c8ea30 100644
+--- a/starlette/middleware/httpsredirect.py
++++ b/starlette/middleware/httpsredirect.py
+@@ -1,5 +1,6 @@
++from starlette._utils import parse_authority
+ from starlette.datastructures import URL
+-from starlette.responses import RedirectResponse
++from starlette.responses import PlainTextResponse, RedirectResponse
+ from starlette.types import ASGIApp, Receive, Scope, Send
+ 
+ 
+@@ -10,8 +11,17 @@ class HTTPSRedirectMiddleware:
+     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+         if scope["type"] in ("http", "websocket") and scope["scheme"] in ("http", "ws"):
+             url = URL(scope=scope)
++            if not url.netloc:
++                response = PlainTextResponse("Invalid host header", status_code=400)
++                await response(scope, receive, send)
++                return
++
+             redirect_scheme = {"http": "https", "ws": "wss"}[url.scheme]
+-            netloc = url.hostname if url.port in (80, 443) else url.netloc
++            parsed_authority = parse_authority(url.netloc)
++            assert parsed_authority is not None
++            host, port = parsed_authority
++            normalized_port = port.lstrip("0") if port is not None else None
++            netloc = host if normalized_port in ("80", "443") else url.netloc
+             url = url.replace(scheme=redirect_scheme, netloc=netloc)
+             response = RedirectResponse(url, status_code=307)
+             await response(scope, receive, send)
+diff --git a/starlette/middleware/trustedhost.py b/starlette/middleware/trustedhost.py
+index cccdfd2..7b9bf7a 100644
+--- a/starlette/middleware/trustedhost.py
++++ b/starlette/middleware/trustedhost.py
+@@ -30,7 +30,7 @@ class TrustedHostMiddleware:
+         self.www_redirect = www_redirect
+ 
+     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+-        if self.allow_any or scope["type"] not in (
++        if scope["type"] not in (
+             "http",
+             "websocket",
+         ):  # pragma: no cover
+@@ -42,6 +42,9 @@ class TrustedHostMiddleware:
+         if host is None:
+             await PlainTextResponse("Invalid host header", status_code=400)(scope, receive, send)
+             return
++        if self.allow_any:
++            await self.app(scope, receive, send)
++            return
+ 
+         is_valid_host = False
+         found_www_redirect = False
+diff --git a/starlette/routing.py b/starlette/routing.py
+index 9795f4e..8faa904 100644
+--- a/starlette/routing.py
++++ b/starlette/routing.py
+@@ -14,7 +14,7 @@ from re import Pattern
+ from typing import Any, TypeVar
+ 
+ from starlette._exception_handler import wrap_app_handling_exceptions
+-from starlette._utils import get_route_path, is_async_callable
++from starlette._utils import get_route_path, is_async_callable, parse_host_header
+ from starlette.concurrency import run_in_threadpool
+ from starlette.convertors import CONVERTOR_TYPES, Convertor
+ from starlette.datastructures import URL, Headers, URLPath
+@@ -154,7 +154,12 @@ def compile_path(
+ 
+     if is_host:
+         # Align with `Host.matches()` behavior, which ignores port.
+-        hostname = path[idx:].split(":")[0]
++        remaining = path[idx:]
++        if not param_convertors:
++            parsed_host = parse_host_header(remaining)
++            hostname = parsed_host if parsed_host is not None else remaining.split(":")[0]
++        else:
++            hostname = remaining.split(":")[0]
+         path_regex += re.escape(hostname) + "$"
+     else:
+         path_regex += re.escape(path[idx:]) + "$"
+@@ -478,7 +483,9 @@ class Host(BaseRoute):
+     def matches(self, scope: Scope) -> tuple[Match, Scope]:
+         if scope["type"] in ("http", "websocket"):  # pragma:no branch
+             headers = Headers(scope=scope)
+-            host = headers.get("host", "").split(":")[0]
++            host = parse_host_header(headers.get("host", ""))
++            if host is None:
++                return Match.NONE, {}
+             match = self.host_regex.match(host)
+             if match:
+                 matched_params = match.groupdict()
+diff --git a/tests/middleware/test_https_redirect.py b/tests/middleware/test_https_redirect.py
+index 66014e7..3c22a66 100644
+--- a/tests/middleware/test_https_redirect.py
++++ b/tests/middleware/test_https_redirect.py
+@@ -1,9 +1,18 @@
++from __future__ import annotations
++
++import asyncio
++from typing import Any
++
++import pytest
++
+ from starlette.applications import Starlette
++from starlette.datastructures import Headers
+ from starlette.middleware import Middleware
+ from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+ from starlette.requests import Request
+ from starlette.responses import PlainTextResponse
+ from starlette.routing import Route
++from starlette.types import Message
+ from tests.types import TestClientFactory
+ 
+ 
+@@ -39,3 +48,47 @@ def test_https_redirect_middleware(test_client_factory: TestClientFactory) -> No
+     response = client.get("/", follow_redirects=False)
+     assert response.status_code == 307
+     assert response.headers["location"] == "https://testserver:123/"
++
++
++@pytest.mark.parametrize(
++    ("host", "server", "expected_status", "expected_location", "expected_body"),
++    [
++        (b"example.com:00080", ("example.com", 80), 307, "https://example.com/", b""),
++        (b"[::1]:00443", ("::1", 80), 307, "https://[::1]/", b""),
++        (b"[:::]", ("2001:db8::1", 8000), 307, "https://[2001:db8::1]:8000/", b""),
++        (b"example.com:65536", ("example.org", 80), 307, "https://example.org/", b""),
++        (b"[:::]", None, 400, None, b"Invalid host header"),
++    ],
++)
++def test_https_redirect_validates_authority(
++    host: bytes,
++    server: tuple[str, int] | None,
++    expected_status: int,
++    expected_location: str | None,
++    expected_body: bytes,
++) -> None:
++    async def run_middleware() -> list[Message]:
++        messages: list[Message] = []
++
++        async def receive() -> Message:
++            return {"type": "http.request", "body": b"", "more_body": False}
++
++        async def send(message: Message) -> None:
++            messages.append(message)
++
++        scope: dict[str, Any] = {
++            "type": "http",
++            "scheme": "http",
++            "path": "/",
++            "headers": [(b"host", host)],
++            "server": server,
++        }
++        middleware = HTTPSRedirectMiddleware(PlainTextResponse("OK"))
++        await middleware(scope, receive, send)
++        return messages
++
++    messages = asyncio.run(run_middleware())
++    assert messages[0]["status"] == expected_status
++    headers = Headers(raw=messages[0]["headers"])
++    assert headers.get("location") == expected_location
++    assert messages[1]["body"] == expected_body
+diff --git a/tests/middleware/test_trusted_host.py b/tests/middleware/test_trusted_host.py
+index 055d7dc..caa84dc 100644
+--- a/tests/middleware/test_trusted_host.py
++++ b/tests/middleware/test_trusted_host.py
+@@ -38,7 +38,13 @@ def test_trusted_host_middleware(test_client_factory: TestClientFactory) -> None
+     [
+         ("[::1]", 200),
+         ("[::1]:8000", 200),
++        ("[::1]:00080", 200),
++        ("[::1]:65536", 200),
++        ("[v1.example]", 200),
++        ("[v1.example]:99999", 200),
+         ("[2001:db8::1]", 400),
++        ("[2001:db8:::1]", 400),
++        ("[v.example]", 400),
+         ("[::1", 400),
+         ("[::1]evil.example.com", 400),
+         ("[::1]@attacker", 400),
+@@ -60,7 +66,9 @@ def test_trusted_host_middleware_ipv6(test_client_factory: TestClientFactory, ho
+ 
+     app = Starlette(
+         routes=[Route("/", endpoint=homepage)],
+-        middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=["[::1]", "api_service", "*.example.com"])],
++        middleware=[
++            Middleware(TrustedHostMiddleware, allowed_hosts=["[::1]", "[v1.example]", "api_service", "*.example.com"])
++        ],
+     )
+ 
+     client = test_client_factory(app)
+@@ -68,6 +76,13 @@ def test_trusted_host_middleware_ipv6(test_client_factory: TestClientFactory, ho
+     assert response.status_code == status_code
+ 
+ 
++def test_trusted_host_wildcard_rejects_malformed_authority(test_client_factory: TestClientFactory) -> None:
++    app = Starlette(middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=["*"])])
++    response = test_client_factory(app).get("/", headers={"host": "[:::]"})
++
++    assert response.status_code == 400
++
++
+ def test_default_allowed_hosts() -> None:
+     app = Starlette()
+     middleware = TrustedHostMiddleware(app)
+diff --git a/tests/test_datastructures.py b/tests/test_datastructures.py
+index 6240258..56bd124 100644
+--- a/tests/test_datastructures.py
++++ b/tests/test_datastructures.py
+@@ -196,6 +196,35 @@ def test_url_from_scope_with_invalid_host(host: bytes) -> None:
+     assert u.netloc == "example.com"
+ 
+ 
++@pytest.mark.parametrize(
++    ("host", "expected_netloc"),
++    [
++        (b"example.com:00080", "example.com:00080"),
++        (b"[v1.example]:00443", "[v1.example]:00443"),
++        (b"example.com:65536", "example.com"),
++        (b"example.com:port", "example.com"),
++        (b"[2001:db8:::1]", "example.com"),
++    ],
++)
++def test_url_from_scope_validates_host_authority(host: bytes, expected_netloc: str) -> None:
++    url = URL(
++        scope={
++            "scheme": "http",
++            "server": ("example.com", 80),
++            "path": "/",
++            "headers": [(b"host", host)],
++        }
++    )
++
++    assert url.netloc == expected_netloc
++
++
++def test_url_from_scope_brackets_ipv6_server() -> None:
++    url = URL(scope={"scheme": "http", "server": ("2001:db8::1", 8000), "path": "/", "headers": []})
++
++    assert str(url) == "http://[2001:db8::1]:8000/"
++
++
+ @pytest.mark.parametrize(
+     "path, expected_path",
+     [
+diff --git a/tests/test_routing.py b/tests/test_routing.py
+index bca758c..1c81957 100644
+--- a/tests/test_routing.py
++++ b/tests/test_routing.py
+@@ -15,7 +15,7 @@ from starlette.exceptions import HTTPException
+ from starlette.middleware import Middleware
+ from starlette.requests import Request
+ from starlette.responses import JSONResponse, PlainTextResponse, Response
+-from starlette.routing import Host, Mount, NoMatchFound, Route, Router, WebSocketRoute
++from starlette.routing import Host, Match, Mount, NoMatchFound, Route, Router, WebSocketRoute
+ from starlette.testclient import TestClient
+ from starlette.types import ASGIApp, Message, Receive, Scope, Send
+ from starlette.websockets import WebSocket, WebSocketDisconnect
+@@ -441,6 +441,7 @@ def test_host_routing(test_client_factory: TestClientFactory) -> None:
+ 
+     response = client.get("/users")
+     assert response.status_code == 200
++
+     assert response.json() == {"users": [{"username": "tom"}]}
+ 
+     response = client.get("/")
+@@ -476,6 +477,23 @@ def test_host_routing(test_client_factory: TestClientFactory) -> None:
+     assert response.status_code == 200
+ 
+ 
++@pytest.mark.parametrize(
++    ("route_host", "request_host", "expected_match"),
++    [
++        ("[::1]", "[::1]:00080", Match.FULL),
++        ("[::1]", "[::1]:65536", Match.FULL),
++        ("[v1.example]", "[v1.example]:99999", Match.FULL),
++        ("[::1]", "[2001:db8:::1]", Match.NONE),
++        ("example.com", "example.com:port", Match.NONE),
++    ],
++)
++def test_host_routing_validates_authority(route_host: str, request_host: str, expected_match: Match) -> None:
++    route = Host(route_host, app=homepage)
++    match, _ = route.matches({"type": "http", "headers": [(b"host", request_host.encode("ascii"))]})
++
++    assert match is expected_match
++
++
+ def test_host_reverse_urls() -> None:
+     assert mixed_hosts_app.url_path_for("homepage").make_absolute_url("https://whatever") == "https://www.example.org/"
+     assert (
+diff --git a/.pytest_cache/.gitignore b/.pytest_cache/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/.gitignore
+@@ -0,0 +1,2 @@
++# Created by pytest automatically.
++*
+diff --git a/.pytest_cache/CACHEDIR.TAG b/.pytest_cache/CACHEDIR.TAG
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/CACHEDIR.TAG
+@@ -0,0 +1,4 @@
++Signature: 8a477f597d28d172789f06886806bc55
++# This file is a cache directory tag created by pytest.
++# For information about cache directory tags, see:
++#	https://bford.info/cachedir/spec.html
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/.pytest_cache/v/cache/lastfailed b/.pytest_cache/v/cache/lastfailed
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/lastfailed
+@@ -0,0 +1,8 @@
++{
++  "tests/test_routing.py": true,
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-example.com:00080-server0-307-https://example.com/-]": true,
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-[::1]:00443-server1-307-https://[::1]/-]": true,
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-[:::]-server2-307-https://[2001:db8::1]:8000/-]": true,
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-example.com:65536-server3-307-https://example.org/-]": true,
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-[:::]-None-400-None-Invalid host header]": true
++}
+diff --git a/.pytest_cache/v/cache/nodeids b/.pytest_cache/v/cache/nodeids
+new file mode 100644
+--- /dev/null
++++ b/.pytest_cache/v/cache/nodeids
+@@ -0,0 +1,46 @@
++[
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[[::1]:00443-server1-307-https://[::1]/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[[:::]-None-400-None-Invalid host header]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[[:::]-server2-307-https://[2001:db8::1]:8000/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[asyncio-[::1]:00443-server1-307-https://[::1]/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[asyncio-[:::]-None-400-None-Invalid host header]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[asyncio-[:::]-server2-307-https://[2001:db8::1]:8000/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[asyncio-example.com:00080-server0-307-https://example.com/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[asyncio-example.com:65536-server3-307-https://example.org/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[example.com:00080-server0-307-https://example.com/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[example.com:65536-server3-307-https://example.org/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-[::1]:00443-server1-307-https://[::1]/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-[:::]-None-400-None-Invalid host header]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-[:::]-server2-307-https://[2001:db8::1]:8000/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-example.com:00080-server0-307-https://example.com/-]",
++  "tests/middleware/test_https_redirect.py::test_https_redirect_validates_authority[trio-example.com:65536-server3-307-https://example.org/-]",
++  "tests/test_datastructures.py::test_url",
++  "tests/test_datastructures.py::test_url_blank_params",
++  "tests/test_datastructures.py::test_url_from_scope",
++  "tests/test_datastructures.py::test_url_from_scope_brackets_ipv6_server",
++  "tests/test_datastructures.py::test_url_from_scope_validates_host_authority[[2001:db8:::1]-example.com]",
++  "tests/test_datastructures.py::test_url_from_scope_validates_host_authority[[v1.example]:00443-[v1.example]:00443]",
++  "tests/test_datastructures.py::test_url_from_scope_validates_host_authority[example.com:00080-example.com:00080]",
++  "tests/test_datastructures.py::test_url_from_scope_validates_host_authority[example.com:65536-example.com]",
++  "tests/test_datastructures.py::test_url_from_scope_validates_host_authority[example.com:port-example.com]",
++  "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path[host-header-absolute]",
++  "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path[host-header-at-sign]",
++  "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path[host-header-scheme-relative]",
++  "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path[host-header-userinfo]",
++  "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path[server-fallback-absolute]",
++  "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path[server-fallback-at-sign]",
++  "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path[server-fallback-scheme-relative]",
++  "tests/test_datastructures.py::test_url_from_scope_with_authority_in_path[server-fallback-userinfo]",
++  "tests/test_datastructures.py::test_url_from_scope_with_invalid_host[at-sign]",
++  "tests/test_datastructures.py::test_url_from_scope_with_invalid_host[backslash]",
++  "tests/test_datastructures.py::test_url_from_scope_with_invalid_host[hash]",
++  "tests/test_datastructures.py::test_url_from_scope_with_invalid_host[question-mark]",
++  "tests/test_datastructures.py::test_url_from_scope_with_invalid_host[slash]",
++  "tests/test_datastructures.py::test_url_from_scope_with_invalid_host[space]",
++  "tests/test_datastructures.py::test_url_query_params",
++  "tests/test_routing.py::test_host_routing_validates_authority[[::1]-[2001:db8:::1]-Match.NONE]",
++  "tests/test_routing.py::test_host_routing_validates_authority[[::1]-[::1]:00080-Match.FULL]",
++  "tests/test_routing.py::test_host_routing_validates_authority[[::1]-[::1]:65536-Match.FULL]",
++  "tests/test_routing.py::test_host_routing_validates_authority[[v1.example]-[v1.example]:99999-Match.FULL]",
++  "tests/test_routing.py::test_host_routing_validates_authority[example.com-example.com:port-Match.NONE]"
++]
+diff --git a/starlette/__pycache__/__init__.cpython-311.pyc b/starlette/__pycache__/__init__.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/__init__.cpython-311.pyc added
+diff --git a/starlette/__pycache__/_exception_handler.cpython-311.pyc b/starlette/__pycache__/_exception_handler.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/_exception_handler.cpython-311.pyc added
+diff --git a/starlette/__pycache__/_utils.cpython-311.pyc b/starlette/__pycache__/_utils.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/_utils.cpython-311.pyc added
+diff --git a/starlette/__pycache__/applications.cpython-311.pyc b/starlette/__pycache__/applications.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/applications.cpython-311.pyc added
+diff --git a/starlette/__pycache__/authentication.cpython-311.pyc b/starlette/__pycache__/authentication.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/authentication.cpython-311.pyc added
+diff --git a/starlette/__pycache__/background.cpython-311.pyc b/starlette/__pycache__/background.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/background.cpython-311.pyc added
+diff --git a/starlette/__pycache__/concurrency.cpython-311.pyc b/starlette/__pycache__/concurrency.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/concurrency.cpython-311.pyc added
+diff --git a/starlette/__pycache__/config.cpython-311.pyc b/starlette/__pycache__/config.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/config.cpython-311.pyc added
+diff --git a/starlette/__pycache__/convertors.cpython-311.pyc b/starlette/__pycache__/convertors.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/convertors.cpython-311.pyc added
+diff --git a/starlette/__pycache__/datastructures.cpython-311.pyc b/starlette/__pycache__/datastructures.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/datastructures.cpython-311.pyc added
+diff --git a/starlette/__pycache__/endpoints.cpython-311.pyc b/starlette/__pycache__/endpoints.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/endpoints.cpython-311.pyc added
+diff --git a/starlette/__pycache__/exceptions.cpython-311.pyc b/starlette/__pycache__/exceptions.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/exceptions.cpython-311.pyc added
+diff --git a/starlette/__pycache__/formparsers.cpython-311.pyc b/starlette/__pycache__/formparsers.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/formparsers.cpython-311.pyc added
+diff --git a/starlette/__pycache__/requests.cpython-311.pyc b/starlette/__pycache__/requests.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/requests.cpython-311.pyc added
+diff --git a/starlette/__pycache__/responses.cpython-311.pyc b/starlette/__pycache__/responses.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/responses.cpython-311.pyc added
+diff --git a/starlette/__pycache__/routing.cpython-311.pyc b/starlette/__pycache__/routing.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/routing.cpython-311.pyc added
+diff --git a/starlette/__pycache__/schemas.cpython-311.pyc b/starlette/__pycache__/schemas.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/schemas.cpython-311.pyc added
+diff --git a/starlette/__pycache__/staticfiles.cpython-311.pyc b/starlette/__pycache__/staticfiles.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/staticfiles.cpython-311.pyc added
+diff --git a/starlette/__pycache__/status.cpython-311.pyc b/starlette/__pycache__/status.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/status.cpython-311.pyc added
+diff --git a/starlette/__pycache__/templating.cpython-311.pyc b/starlette/__pycache__/templating.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/templating.cpython-311.pyc added
+diff --git a/starlette/__pycache__/testclient.cpython-311.pyc b/starlette/__pycache__/testclient.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/testclient.cpython-311.pyc added
+diff --git a/starlette/__pycache__/types.cpython-311.pyc b/starlette/__pycache__/types.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/types.cpython-311.pyc added
+diff --git a/starlette/__pycache__/websockets.cpython-311.pyc b/starlette/__pycache__/websockets.cpython-311.pyc
+new file mode 100644
+Binary file starlette/__pycache__/websockets.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/__init__.cpython-311.pyc b/starlette/middleware/__pycache__/__init__.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/__init__.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/authentication.cpython-311.pyc b/starlette/middleware/__pycache__/authentication.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/authentication.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/base.cpython-311.pyc b/starlette/middleware/__pycache__/base.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/base.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/body_limit.cpython-311.pyc b/starlette/middleware/__pycache__/body_limit.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/body_limit.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/cors.cpython-311.pyc b/starlette/middleware/__pycache__/cors.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/cors.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/errors.cpython-311.pyc b/starlette/middleware/__pycache__/errors.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/errors.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/exceptions.cpython-311.pyc b/starlette/middleware/__pycache__/exceptions.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/exceptions.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/gzip.cpython-311.pyc b/starlette/middleware/__pycache__/gzip.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/gzip.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/httpsredirect.cpython-311.pyc b/starlette/middleware/__pycache__/httpsredirect.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/httpsredirect.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/opentelemetry.cpython-311.pyc b/starlette/middleware/__pycache__/opentelemetry.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/opentelemetry.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/sessions.cpython-311.pyc b/starlette/middleware/__pycache__/sessions.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/sessions.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/trustedhost.cpython-311.pyc b/starlette/middleware/__pycache__/trustedhost.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/trustedhost.cpython-311.pyc added
+diff --git a/starlette/middleware/__pycache__/wsgi.cpython-311.pyc b/starlette/middleware/__pycache__/wsgi.cpython-311.pyc
+new file mode 100644
+Binary file starlette/middleware/__pycache__/wsgi.cpython-311.pyc added
+diff --git a/tests/__pycache__/__init__.cpython-311.pyc b/tests/__pycache__/__init__.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/__init__.cpython-311.pyc added
+diff --git a/tests/__pycache__/conftest.cpython-311.pyc b/tests/__pycache__/conftest.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/conftest.cpython-311.pyc added
+diff --git a/tests/__pycache__/test__utils.cpython-311.pyc b/tests/__pycache__/test__utils.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test__utils.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_applications.cpython-311.pyc b/tests/__pycache__/test_applications.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_applications.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_authentication.cpython-311.pyc b/tests/__pycache__/test_authentication.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_authentication.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_background.cpython-311.pyc b/tests/__pycache__/test_background.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_background.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_concurrency.cpython-311.pyc b/tests/__pycache__/test_concurrency.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_concurrency.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_config.cpython-311.pyc b/tests/__pycache__/test_config.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_config.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_convertors.cpython-311.pyc b/tests/__pycache__/test_convertors.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_convertors.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_datastructures.cpython-311.pyc b/tests/__pycache__/test_datastructures.cpython-311.pyc
+new file mode 100644
+Binary file tests/__pycache__/test_datastructures.cpython-311.pyc added
+diff --git a/tests/__pycache__/test_endpoints.cpython-311.pyc b/tests/__pycache__/test_endpoints.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_endpoints.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_exceptions.cpython-311.pyc b/tests/__pycache__/test_exceptions.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_exceptions.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_formparsers.cpython-311.pyc b/tests/__pycache__/test_formparsers.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_formparsers.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_requests.cpython-311.pyc b/tests/__pycache__/test_requests.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_requests.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_responses.cpython-311.pyc b/tests/__pycache__/test_responses.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_responses.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_routing.cpython-311.pyc b/tests/__pycache__/test_routing.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_routing.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_schemas.cpython-311.pyc b/tests/__pycache__/test_schemas.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_schemas.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_staticfiles.cpython-311.pyc b/tests/__pycache__/test_staticfiles.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_staticfiles.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_status.cpython-311.pyc b/tests/__pycache__/test_status.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_status.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_templates.cpython-311.pyc b/tests/__pycache__/test_templates.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_templates.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_testclient.cpython-311.pyc b/tests/__pycache__/test_testclient.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_testclient.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/test_websockets.cpython-311.pyc b/tests/__pycache__/test_websockets.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/test_websockets.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/__pycache__/types.cpython-311.pyc b/tests/__pycache__/types.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/__pycache__/types.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/__init__.cpython-311.pyc b/tests/middleware/__pycache__/__init__.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/__init__.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_base.cpython-311.pyc b/tests/middleware/__pycache__/test_base.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_base.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_body_limit.cpython-311.pyc b/tests/middleware/__pycache__/test_body_limit.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_body_limit.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_cors.cpython-311.pyc b/tests/middleware/__pycache__/test_cors.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_cors.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_errors.cpython-311.pyc b/tests/middleware/__pycache__/test_errors.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_errors.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_gzip.cpython-311.pyc b/tests/middleware/__pycache__/test_gzip.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_gzip.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_https_redirect.cpython-311.pyc b/tests/middleware/__pycache__/test_https_redirect.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_https_redirect.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_middleware.cpython-311.pyc b/tests/middleware/__pycache__/test_middleware.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_middleware.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_opentelemetry.cpython-311.pyc b/tests/middleware/__pycache__/test_opentelemetry.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_opentelemetry.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_session.cpython-311.pyc b/tests/middleware/__pycache__/test_session.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_session.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_trusted_host.cpython-311.pyc b/tests/middleware/__pycache__/test_trusted_host.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_trusted_host.cpython-311.pyc
+@@ -0,0 +1,0 @@
+diff --git a/tests/middleware/__pycache__/test_wsgi.cpython-311.pyc b/tests/middleware/__pycache__/test_wsgi.cpython-311.pyc
+new file mode 100644
+--- /dev/null
++++ b/tests/middleware/__pycache__/test_wsgi.cpython-311.pyc
+@@ -0,0 +1,0 @@

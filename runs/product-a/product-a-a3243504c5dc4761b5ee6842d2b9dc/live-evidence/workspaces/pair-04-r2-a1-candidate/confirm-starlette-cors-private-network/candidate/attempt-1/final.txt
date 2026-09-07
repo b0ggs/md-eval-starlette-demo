@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Added CORS private-network preflight support:
+
+- New `allow_private_network=False` opt-in.
+- Matching opted-in preflights return `Access-Control-Allow-Private-Network: true`.
+- Default private-network preflights return 400 without the allow header.
+- Added tests and documentation.
+
+Static syntax and line-length checks passed. Focused pytest runs timed out without output; no broader tests were run.

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Session cookies now emit only after effective session changes. Accessing `request.session` adds `Cookie` to `Vary` while preserving existing values. Added focused regression tests.
+
+Verification gap: targeted pytest exceeded the 60-second limit without output; diff checks passed.

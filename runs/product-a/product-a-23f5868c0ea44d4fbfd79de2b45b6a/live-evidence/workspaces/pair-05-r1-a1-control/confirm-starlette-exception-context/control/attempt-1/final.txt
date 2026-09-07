@@ -1,0 +1,3 @@
+BLOCKED
+
+The repository shell is unavailable (“code-mode host is disabled”), so I could not read `CODER.md` and `.issue-contract.md` or safely execute the contract. No files were changed.

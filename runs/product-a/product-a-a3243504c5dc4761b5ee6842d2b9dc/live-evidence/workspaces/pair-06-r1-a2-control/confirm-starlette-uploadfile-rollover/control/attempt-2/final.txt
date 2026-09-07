@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Updated `UploadFile.write()` to anticipate spooled-file rollover and use the thread pool for the rollover-triggering write, preserving direct in-memory writes below the limit.
+
+Added regression coverage. Focused asyncio tests pass (`2 passed`). Trio is unavailable due sandbox socket restrictions.

@@ -1,0 +1,8 @@
+Implemented `WebSocketDisconnected` in [websockets.py](/workspace/starlette/websockets.py):
+
+- Added distinct `RuntimeError` subclass.
+- Applied it to disconnected low-level send/receive operations and receive helpers.
+- Preserved existing messages, invalid-mode `RuntimeError`, and peer `WebSocketDisconnect`.
+- Direct behavioral checks and test collection passed. Full integration tests stalled on the first baseline test in this environment.
+
+TASK_COMPLETE

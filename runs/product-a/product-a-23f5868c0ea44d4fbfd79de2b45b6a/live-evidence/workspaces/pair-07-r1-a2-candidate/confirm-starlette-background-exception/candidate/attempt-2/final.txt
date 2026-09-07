@@ -1,0 +1,3 @@
+BLOCKED
+
+Repository command execution is unavailable (“code-mode host is disabled”), so I could not read `CODER.md` and `.issue-contract.md` as required. No files were changed.

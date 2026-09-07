@@ -1,0 +1,7 @@
+Implemented both session requirements:
+
+- Cookies are emitted only when session data changes, including nested mutations.
+- Accessing `request.session` adds `Cookie` to `Vary` while preserving existing values.
+- Added regression tests for read-only access, modifications, clearing, and existing `Vary` headers.
+
+Direct ASGI checks and diff validation passed. The repository’s `TestClient` suite hangs on unrelated pre-existing tests in this sandbox.

@@ -1,0 +1,5 @@
+IMPLEMENTED
+
+Added `allow_private_network=False` to `CORSMiddleware`, enforcing default denial and emitting `Access-Control-Allow-Private-Network: true` when enabled. Added tests and documentation.
+
+Verification: direct ASGI checks passed, 34 CORS tests collected, and diff checks passed. Full pytest execution was blocked by a pre-existing `TestClient` hang also affecting unchanged tests.

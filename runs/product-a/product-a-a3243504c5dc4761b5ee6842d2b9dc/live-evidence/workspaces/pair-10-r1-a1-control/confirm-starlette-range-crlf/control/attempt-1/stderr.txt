@@ -1,0 +1,2 @@
+2026-09-07T16:49:36.722591Z ERROR codex_core::tools::router: error=write_stdin failed: Unknown process id 24405
+2026-09-07T16:54:29.515142Z ERROR codex_core::tools::router: error=exec_command failed: CreateProcess { message: "Rejected(\"`/usr/bin/bash -lc 'rm -rf /workspace/starlette/__pycache__ /workspace/tests/__pycache__\\ngit -c safe.directory=/workspace status --short\\ngit -c safe.directory=/workspace diff --check'` rejected: rm -f style commands are not permitted. Use a safer approach\")" }

@@ -1,0 +1,7 @@
+IMPLEMENTED
+
+Stored complete `http.response.debug` info in `response.extensions` while preserving template/context compatibility. Added focused regression tests.
+
+Validation: `git diff --check` passed. Pytest could not complete: `uv` was unavailable and the permitted pytest retry timed out after 30 seconds.
+
+TASK_COMPLETE

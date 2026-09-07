@@ -1,0 +1,10 @@
+IMPLEMENTED
+
+Updated `StreamingResponse` for ASGI 2.4+ to:
+
+- Convert send-side `OSError` to `ClientDisconnect`.
+- Stop consuming the body iterator immediately.
+- Avoid calling or waiting on `receive`.
+- Preserve legacy behavior for earlier ASGI versions.
+
+Added regression coverage. Focused tests pass: 2 passed.

@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a07c92-7a1b-7932-a97d-3eb3100868c6"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"I’ll first read `CODER.md` and `.issue-contract.md` in full, then I’ll implement only the contracted scope and verify it without creating any status or handoff artifacts."}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"The initial repository read did not execute because the command host was temporarily unavailable. I’m retrying the same read-only inspection."}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"BLOCKED\n\nThe repository command host is unavailable (“code-mode host is disabled”), so I could not read `CODER.md` or `.issue-contract.md` and therefore could not safely implement the issue contract."}}
+{"type":"turn.completed","usage":{"input_tokens":26542,"cached_input_tokens":18432,"cache_write_input_tokens":0,"output_tokens":477,"reasoning_output_tokens":178}}

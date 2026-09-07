@@ -1,0 +1,3 @@
+BLOCKED
+
+The workspace command host is disabled, so I could not read `CODER.md` or `.issue-contract.md`. No files were changed.
