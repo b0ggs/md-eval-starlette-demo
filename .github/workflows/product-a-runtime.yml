@@ -1,0 +1,42 @@
+name: Publish fixed Product A runtime
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    if: github.repository == 'b0ggs/md-eval-starlette-demo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - {profile: standard, task: full-starlette-websocket-denial, lock: 24052fd1f6931e31f3853079b9b391c2bf104d2ed6ec06dac2fd252fea3e34cb}
+          - {profile: session, task: confirm-starlette-session-tracking, lock: c43532687a7bf69ec02b8008e7322209dd64c6d06778e26561097bdb3ef2dddf}
+          - {profile: modern, task: confirm-starlette-malformed-host, lock: adf210e6cd3cacc2ea6696fa1669ac33e6354f8240da1aecf70ee581d0b87c41}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Authenticate to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build, push, and expose immutable identifiers
+        env:
+          PROFILE: ${{ matrix.profile }}
+          PROFILE_TASK: ${{ matrix.task }}
+          IMAGE_LOCK_SHA256: ${{ matrix.lock }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/b0ggs/md-eval-starlette-runtime:${PROFILE}-${GITHUB_SHA}"
+          docker build --platform linux/amd64 -f runtime/product-a-v2/Dockerfile \
+            --build-arg PROFILE_TASK --build-arg IMAGE_LOCK_SHA256 -t "$image" .
+          docker push "$image"
+          config_id="$(docker image inspect --format '{{.Id}}' "$image")"
+          pull="$(docker image inspect --format '{{index .RepoDigests 0}}' "$image")"
+          test "${config_id#sha256:}" != "$config_id"
+          test "${pull#*@sha256:}" != "$pull"
+          echo "| ${PROFILE} | \`${pull}\` | \`${config_id}\` |" >> "$GITHUB_STEP_SUMMARY"

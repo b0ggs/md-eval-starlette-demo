@@ -1,0 +1,14 @@
+**
+!runtime
+!runtime/product-a-v2
+!runtime/product-a-v2/*
+!tooling
+!tooling/taskcheck.py
+!tasks
+!tasks/*/
+!tasks/*/image-lock.json
+!tasks/*/image/
+!tasks/*/image/wheels/
+!tasks/full-starlette-websocket-denial/image/wheels/*.whl
+!tasks/confirm-starlette-session-tracking/image/wheels/*.whl
+!tasks/confirm-starlette-malformed-host/image/wheels/*.whl

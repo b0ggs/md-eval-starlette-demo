@@ -9,6 +9,7 @@ categories, then repeats each run's already-frozen resource analysis verbatim.
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -223,12 +224,16 @@ def _default_verify_run(repo_root: Path, run_dir: Path) -> Mapping[str, Any]:
     from tooling import starlette_product_a as product_a
 
     runs_root = repo_root / RUNS_RELATIVE
+    components = _read_json(run_dir / "REQUEST.json").get("component_sha256", {})
+    runtime_context = nullcontext()
+    if isinstance(components, dict) and "product_a_public_runtime" in components:
+        from tooling import starlette_product_a_runtime as public_runtime
+        runtime_context = public_runtime.protocol()
     try:
-        manifest, analysis = product_a._verify_evidence(  # noqa: SLF001
-            repo_root,
-            run_dir,
-            allowed_runs_root=runs_root,
-        )
+        with runtime_context:
+            manifest, analysis = product_a._verify_evidence(  # noqa: SLF001
+                repo_root, run_dir, allowed_runs_root=runs_root,
+            )
     except Exception:
         request_path = run_dir / "REQUEST.json"
         request = _read_json(request_path)

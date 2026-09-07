@@ -1,0 +1,69 @@
+{
+  "schema": "product-a-public-runtime-v2",
+  "status": "unpublished",
+  "platform": "linux/amd64",
+  "repository": "ghcr.io/b0ggs/md-eval-starlette-runtime",
+  "codex": {
+    "package": "@openai/codex@0.153.4-linux-x64",
+    "tarball_url": "https://registry.npmjs.org/@openai/codex/-/codex-0.153.4-linux-x64.tgz",
+    "tarball_sha256": "54818cb9fce3360cc6e44cfc5a96952cd5c1243efb43cbe488e11dda84663e08",
+    "binary_sha256": "56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da"
+  },
+  "python": {
+    "version": "3.11.5",
+    "source_image": "docker.io/library/python@sha256:edaf703dce209d774af3ff768fc92b1e3b60261e7602126276f9ceb0e3a96874",
+    "source_config_id": "sha256:69c35b67c5979b527ea7f3551c790c808f1e440b3221a447a387f45cdf1b8080",
+    "executable_sha256": "8219d0acbf6e1b78e322a221c438244034afc7d8c9d08b68019ba320de50afbb",
+    "tree_sha256": "f5b24daba089a8abe98775ba31e8988326f061879d9456e7d1e72046647d18d4"
+  },
+  "debian": {
+    "snapshot": "20260824T000000Z",
+    "packages": [
+      "ca-certificates=20230311",
+      "git=1:2.39.5-0+deb12u3",
+      "tinyproxy=1.11.1-2.1+deb12u1"
+    ]
+  },
+  "profiles": {
+    "standard": {
+      "source_task": "full-starlette-websocket-denial",
+      "image_lock_sha256": "24052fd1f6931e31f3853079b9b391c2bf104d2ed6ec06dac2fd252fea3e34cb",
+      "pull": null,
+      "config_id": null,
+      "tasks": [
+        "full-starlette-websocket-denial",
+        "confirm-starlette-cors-origin",
+        "confirm-starlette-state-mapping",
+        "confirm-starlette-cors-private-network",
+        "confirm-starlette-exception-context",
+        "confirm-starlette-uploadfile-rollover",
+        "confirm-starlette-background-exception",
+        "confirm-starlette-http-disconnect",
+        "confirm-starlette-range-crlf",
+        "confirm-starlette-gzip-vary"
+      ]
+    },
+    "session": {
+      "source_task": "confirm-starlette-session-tracking",
+      "image_lock_sha256": "c43532687a7bf69ec02b8008e7322209dd64c6d06778e26561097bdb3ef2dddf",
+      "pull": null,
+      "config_id": null,
+      "tasks": ["confirm-starlette-session-tracking"]
+    },
+    "modern": {
+      "source_task": "confirm-starlette-malformed-host",
+      "image_lock_sha256": "adf210e6cd3cacc2ea6696fa1669ac33e6354f8240da1aecf70ee581d0b87c41",
+      "pull": null,
+      "config_id": null,
+      "tasks": [
+        "confirm-starlette-malformed-host",
+        "confirm-starlette-ws-disconnected",
+        "confirm-starlette-debug-extension",
+        "confirm-starlette-suffix-range",
+        "confirm-starlette-form-context-cleanup",
+        "confirm-starlette-staticfiles-weak-etag",
+        "confirm-starlette-root-path-boundary"
+      ]
+    }
+  }
+}

@@ -158,31 +158,35 @@ paid calls.
 
 A fresh experiment requires:
 
-- Git and Python 3.10 or newer.
-- A Codex account with access to `gpt-5.6-sol`, plus an absolute
-  `MDSEVAL_CODEX_HOME` path containing that account's nonempty, non-symlink
-  `auth.json` file. The experiment invokes the Codex executable sealed inside
-  its pinned containers; it does not invoke a host `codex` executable.
-- A running Docker daemon, the three request-pinned container images already
-  present at their exact content digests, and the pinned Python 3.11.5
-  interpreter tree. The interpreter parent defaults to
-  `/private/tmp/mdseval-interpreters-sealed`; set `MDSEVAL_INTERPRETERS` if it
-  lives elsewhere.
+- Git, Python 3.10 or newer, and a running `linux/amd64` Docker daemon.
+- A Codex account with access to `gpt-5.6-sol` and a file-based Codex login at
+  `~/.codex/auth.json`. Run `codex login`; if your installation uses the OS
+  keyring, set `cli_auth_credentials_store = "file"` in
+  `~/.codex/config.toml` and log in again. Treat `auth.json` like a password.
 
-The Docker defaults target Docker Desktop on macOS. For a different
-installation, set `MDSEVAL_DOCKER` to the Docker executable and, when needed,
-`MDSEVAL_DOCKER_HOST` and `MDSEVAL_DOCKER_CONFIG`. The command checks the
-authentication source, frozen inputs, images, interpreter, and sealed runtime
-before it asks permission to make model calls. No image or interpreter
-acquisition workflow is bundled, and this command does not download or build
-missing prerequisites.
+The host Codex CLI is used only to establish that login. The experiment runs
+the checksum-pinned Codex 0.153.4 binary inside its fixed containers. It never
+places credentials in a build context or image layer; a temporary copy is
+mounted only for isolated readiness checks and approved execution, never into
+the task workspace or preserved evidence.
+
+On first use, the command offers to pull three immutable public image digests
+and extract the pinned Python 3.11.5 tree into the user's cache. Entering
+anything other than `y` or `yes` declines and exits before creating a request.
+Later runs verify and reuse those artifacts. If Docker is installed at a
+nonstandard path, set `MDSEVAL_DOCKER` to its executable.
+
+Release assembly note: until `runtime/product-a-v2/runtime-lock.json` is marked
+`published` with the three clean GHCR digest/config-ID pairs, the command
+intentionally stops before creating a request. Opaque historical images are
+never substituted.
 
 ### What the command does
 
-The command creates a new, unapproved request, immediately prints its run
-directory and request SHA-256, and performs a bounded, zero-model-call
-readiness check. If readiness passes, it prints the key fixed design
-parameters; `REQUEST.json` contains the complete binding:
+After the runtime and login are ready, the command creates a new, unapproved
+request, prints its run directory and SHA-256, and performs a bounded,
+zero-model-call readiness check. If readiness passes, it prints the key fixed
+design parameters; `REQUEST.json` contains the complete binding:
 
 - 18 bundled tasks and the bundled MD versus empty No-MD control.
 - Two paired repeats per task: 36 attempts per arm and 72 planned calls.
@@ -235,7 +239,7 @@ later local step failed. If `live-evidence/execution-manifest.json` says
 `"status": "complete"` but `REPORT.md` is absent, finish the existing run with:
 
 ```bash
-python3 -m tooling.starlette_product_a verify-report RUN_DIRECTORY
+python3 run_product_a.py --verify-report RUN_DIRECTORY
 ```
 
 If `REPORT.md` already exists and only the root dashboard refresh failed, run:
@@ -246,12 +250,13 @@ python3 -m tooling.starlette_product_a_results
 
 Only completed runs that pass evidence verification are added to `RESULTS.md`.
 
-### Lower-level audit workflow
+### Frozen v1 audit workflow
 
-The interactive command is a thin interface over the four explicit lifecycle
-commands below. Use these when inspecting or auditing each boundary manually.
-`prepare` always creates a new directory and fixed request; there are no flags
-for choosing tasks, models, controls, or instruction files.
+The public runtime keeps prepare, hash-bound approval, execution, and reporting
+inside the one command so a new user does not need to shuttle paths and hashes
+between commands. The four commands below remain available to inspect the
+checkpointed v1 lifecycle and its historical local runtime; they are not the
+portable v2 launch path.
 
 ```bash
 python3 -m tooling.starlette_product_a prepare
@@ -337,7 +342,7 @@ python3 -c 'from hashlib import sha256; from pathlib import Path; print(sha256(P
 ```
 
 The expected digest is
-`369d88a2bf44b1edd469e5d8fcbbe3a3a7ae3d179863fb8584d5db1942213e25`.
+`ee7042110ed9dee2fae4346886716722fad0edc638dd991ba853fb001516bf17`.
 A successful `cmp` prints nothing and exits zero. These commands do not inspect
 authentication, access the network, or invoke a model.
 
@@ -360,6 +365,10 @@ authentication, access the network, or invoke a model.
   reproduction entry point for the historical example.
 - `tooling/starlette_product_a.py` — fixed prepare, approve, run, and
   verify/report lifecycle for fresh Product A experiments.
+- `runtime/product-a-v2/` — auditable fixed-image recipe, dependency notices,
+  and immutable public runtime lock.
+- `tooling/starlette_product_a_runtime.py` — first-use acquisition and the
+  temporary v2 binding around the frozen v1 lifecycle.
 - `tooling/starlette_product_a_results.py` — offline dashboard generator for
   verified Product A results.
 - `tooling/`, `scripts/`, and `src/` — the minimal frozen implementation and

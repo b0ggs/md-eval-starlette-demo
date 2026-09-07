@@ -13,6 +13,7 @@ from typing import Any, Callable, Iterator, Mapping, Sequence
 from scripts import run_batch
 from scripts.contain import runtime as sealed
 from tooling import starlette_product_a as product_a
+from tooling import starlette_product_a_runtime as public_runtime
 from tooling.starlette_demo import demo_task_registry
 
 
@@ -108,7 +109,7 @@ def _readiness_failure(result: Mapping[str, Any]) -> str:
     return f"readiness check failed: {names} ({details})"
 
 
-def run_interactive(
+def _run_ready(
     *,
     input_fn: Callable[[str], str] = input,
     output_fn: Callable[[str], None] = print,
@@ -117,15 +118,13 @@ def run_interactive(
     approve_fn: Callable[[Path, str], Mapping[str, Any]] | None = None,
     run_fn: Callable[[Path], Mapping[str, Any]] | None = None,
     verify_fn: Callable[[Path], Mapping[str, Any]] | None = None,
-    refresh_results_fn: Callable[[], Path] | None = None,
 ) -> dict[str, Any]:
-    """Prepare, check, confirm, run, verify, and refresh the local dashboard."""
+    """Run the existing fixed lifecycle after artifact readiness succeeds."""
 
     prepare_fn = prepare_fn or _prepare
     approve_fn = approve_fn or _approve
     run_fn = run_fn or _run
     verify_fn = verify_fn or _verify
-    refresh_results_fn = refresh_results_fn or _refresh_results
 
     output_fn("Preparing a fresh fixed Product A request...")
     prepared = dict(prepare_fn())
@@ -186,9 +185,7 @@ def run_interactive(
     manifest = dict(run_fn(run_dir))
     output_fn("Run finished. Verifying preserved evidence and writing its report...")
     verified = dict(verify_fn(run_dir))
-    results_path = Path(refresh_results_fn()).absolute()
     output_fn(f"Verified report: {verified.get('report', run_dir / product_a.REPORT_FILENAME)}")
-    output_fn(f"Updated results dashboard: {results_path}")
     return {
         "status": "completed",
         "run_directory": str(run_dir),
@@ -196,22 +193,63 @@ def run_interactive(
         "approval": approval,
         "manifest": manifest,
         "verification": verified,
-        "results": str(results_path),
     }
 
 
+def run_interactive(
+    *,
+    input_fn: Callable[[str], str] = input,
+    output_fn: Callable[[str], None] = print,
+    runtime_fn: Callable[..., Any] | None = None,
+    prepare_fn: Callable[[], Mapping[str, Any]] | None = None,
+    readiness_fn: Callable[[Path], Mapping[str, Any]] = live_readiness_check,
+    approve_fn: Callable[[Path, str], Mapping[str, Any]] | None = None,
+    run_fn: Callable[[Path], Mapping[str, Any]] | None = None,
+    verify_fn: Callable[[Path], Mapping[str, Any]] | None = None,
+    refresh_results_fn: Callable[[], Path] | None = None,
+) -> dict[str, Any]:
+    """Acquire the fixed runtime before creating and approving a fresh request."""
+
+    runtime_fn = runtime_fn or public_runtime.activate
+    with runtime_fn(input_fn, output_fn) as ready:
+        if not ready:
+            return {"status": "cancelled", "stage": "runtime"}
+        result = _run_ready(
+            input_fn=input_fn, output_fn=output_fn, prepare_fn=prepare_fn,
+            readiness_fn=readiness_fn, approve_fn=approve_fn, run_fn=run_fn,
+            verify_fn=verify_fn,
+        )
+    if result["status"] == "completed":
+        results_path = Path((refresh_results_fn or _refresh_results)()).absolute()
+        result["results"] = str(results_path)
+        output_fn(f"Updated results dashboard: {results_path}")
+    return result
+
+
 def _parser() -> argparse.ArgumentParser:
-    return argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         description=(
             "Prepare and run the one fixed Product A experiment. Readiness checks "
             "run before one explicit YES/NO confirmation."
         )
     )
+    parser.add_argument(
+        "--verify-report", metavar="RUN_DIRECTORY", type=Path,
+        help="recover reporting for an already completed public-runtime run",
+    )
+    return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    _parser().parse_args(argv)
+    args = _parser().parse_args(argv)
     try:
+        if args.verify_report:
+            with public_runtime.protocol():
+                verified = _verify(args.verify_report.absolute())
+            results = _refresh_results()
+            print(f"Verified report: {verified['report']}")
+            print(f"Updated results dashboard: {results.absolute()}")
+            return 0
         result = run_interactive()
     except KeyboardInterrupt:
         print(
@@ -222,6 +260,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 130
     except (
         ProductAUXError,
+        public_runtime.RuntimeSetupError,
         product_a.ProductAError,
         product_a.atomic.EvidenceError,
         product_a.live.ShakeoutError,

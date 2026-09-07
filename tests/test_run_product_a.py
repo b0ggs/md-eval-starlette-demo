@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from contextlib import nullcontext
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
@@ -13,6 +14,10 @@ from tooling import starlette_product_a as product_a
 
 REQUEST_SHA = "a" * 64
 RUN_DIR = Path("/tmp/product-a-test-run")
+
+
+def ready_runtime(*args):
+    return nullcontext(True)
 
 
 def passing_readiness() -> dict[str, object]:
@@ -43,6 +48,7 @@ class ProductAInteractiveUXTests(unittest.TestCase):
         result = run_product_a.run_interactive(
             input_fn=lambda prompt: events.append(("prompt", prompt)) or "",
             output_fn=output.append,
+            runtime_fn=ready_runtime,
             prepare_fn=lambda: events.append("prepare") or self.prepared(),
             readiness_fn=lambda path: events.append(("readiness", path))
             or passing_readiness(),
@@ -76,6 +82,7 @@ class ProductAInteractiveUXTests(unittest.TestCase):
             run_product_a.run_interactive(
                 input_fn=forbidden,
                 output_fn=output.append,
+                runtime_fn=ready_runtime,
                 prepare_fn=lambda: events.append("prepare") or self.prepared(),
                 readiness_fn=lambda path: events.append(("readiness", path))
                 or {
@@ -107,6 +114,7 @@ class ProductAInteractiveUXTests(unittest.TestCase):
         result = run_product_a.run_interactive(
             input_fn=lambda prompt: events.append(("prompt", prompt)) or "yes",
             output_fn=output.append,
+            runtime_fn=ready_runtime,
             prepare_fn=lambda: events.append("prepare") or self.prepared(),
             readiness_fn=lambda path: events.append(("readiness", path))
             or passing_readiness(),
@@ -152,6 +160,7 @@ class ProductAInteractiveUXTests(unittest.TestCase):
             run_product_a.run_interactive(
                 input_fn=lambda prompt: "YES",
                 output_fn=lambda line: None,
+                runtime_fn=ready_runtime,
                 prepare_fn=self.prepared,
                 readiness_fn=lambda path: passing_readiness(),
                 approve_fn=lambda path, request_sha256: {
@@ -163,6 +172,17 @@ class ProductAInteractiveUXTests(unittest.TestCase):
             )
 
         self.assertEqual(called["run"], 0)
+
+    def test_runtime_decline_precedes_request_creation(self) -> None:
+        called = {"prepare": 0}
+
+        result = run_product_a.run_interactive(
+            runtime_fn=lambda input_fn, output_fn: nullcontext(False),
+            prepare_fn=lambda: called.__setitem__("prepare", 1),
+        )
+
+        self.assertEqual(result, {"status": "cancelled", "stage": "runtime"})
+        self.assertEqual(called["prepare"], 0)
 
     def test_live_readiness_reuses_existing_preflight_without_live_backend(self) -> None:
         request = {
@@ -235,6 +255,17 @@ class ProductAInteractiveUXTests(unittest.TestCase):
         rendered = stderr.getvalue()
         self.assertIn("approval and execution state depends", rendered)
         self.assertNotIn("consumed approval", rendered)
+
+    def test_main_recovers_report_under_public_runtime_binding(self) -> None:
+        report = RUN_DIR / product_a.REPORT_FILENAME
+        dashboard = RUN_DIR / "RESULTS.md"
+        with mock.patch.object(run_product_a.public_runtime, "protocol",
+                               return_value=nullcontext()), \
+             mock.patch.object(run_product_a, "_verify",
+                               return_value={"report": str(report)}) as verify, \
+             mock.patch.object(run_product_a, "_refresh_results", return_value=dashboard):
+            self.assertEqual(run_product_a.main(["--verify-report", str(RUN_DIR)]), 0)
+        verify.assert_called_once_with(RUN_DIR)
 
 
 if __name__ == "__main__":
