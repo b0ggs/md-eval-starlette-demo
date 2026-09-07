@@ -6,16 +6,15 @@ import json, os
 from pathlib import Path
 import re, shutil, subprocess, tempfile
 from typing import Callable, Iterator, Mapping
+from mdseval.runner import codex_cli
 from scripts.contain import runtime as sealed
 from tooling import starlette_product_a as product_a
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = ROOT / "runtime" / "product-a-v2" / "runtime-lock.json"
 CACHE_ROOT = Path.home() / ".cache" / "md-eval-starlette-demo" / "product-a-v2"
-COMPONENTS = {
-    "product_a_public_entrypoint": "run_product_a.py",
-    "product_a_public_runtime": "tooling/starlette_product_a_runtime.py",
-    "product_a_public_runtime_lock": "runtime/product-a-v2/runtime-lock.json",
-}
+COMPONENTS = {"product_a_public_entrypoint": "run_product_a.py",
+              "product_a_public_runtime": "tooling/starlette_product_a_runtime.py",
+              "product_a_public_runtime_lock": "runtime/product-a-v2/runtime-lock.json"}
 SHA = re.compile(r"sha256:[0-9a-f]{64}")
 class RuntimeSetupError(RuntimeError): pass
 def _need(condition: bool, message: str) -> None:
@@ -26,18 +25,14 @@ def _load_lock(path: Path = LOCK_PATH) -> dict:
         lock = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise RuntimeSetupError(f"invalid public runtime lock: {exc}") from exc
-    _need(isinstance(lock, dict) and lock.get("schema") == "product-a-public-runtime-v2",
-          "unsupported public runtime lock")
-    _need(lock.get("status") == "published",
-          "Product A public runtime is not published yet; no request was created")
+    _need(isinstance(lock, dict) and lock.get("schema") == "product-a-public-runtime-v2", "unsupported public runtime lock")
+    _need(lock.get("status") == "published", "Product A public runtime is not published yet; no request was created")
     _need(lock.get("platform") == "linux/amd64", "unsupported public runtime platform")
     profiles = lock.get("profiles")
-    _need(isinstance(profiles, dict) and set(profiles) == {"standard", "session", "modern"},
-          "public runtime profiles are incomplete")
+    _need(isinstance(profiles, dict) and set(profiles) == {"standard", "session", "modern"}, "public runtime profiles are incomplete")
     tasks, seen = {}, set()
     for profile in profiles.values():
-        _need(isinstance(profile, dict) and SHA.fullmatch(str(profile.get("config_id"))),
-              "public runtime image config ID is invalid")
+        _need(isinstance(profile, dict) and SHA.fullmatch(str(profile.get("config_id"))), "public runtime image config ID is invalid")
         pull = profile.get("pull")
         _need(isinstance(pull, str) and pull.startswith(lock["repository"] + "@sha256:")
               and SHA.fullmatch(pull.rsplit("@", 1)[1]), "public runtime pull digest is invalid")
@@ -47,8 +42,7 @@ def _load_lock(path: Path = LOCK_PATH) -> dict:
             tasks[task] = profile["config_id"]
     _need(seen == set(product_a.TASK_IDS), "public runtime does not cover the fixed 18 tasks")
     python = lock.get("python")
-    _need(isinstance(python, dict) and python.get("version") == "3.11.5"
-          and SHA.fullmatch(str(python.get("source_config_id"))), "Python runtime lock is invalid")
+    _need(isinstance(python, dict) and python.get("version") == "3.11.5" and SHA.fullmatch(str(python.get("source_config_id"))), "Python runtime lock is invalid")
     lock["task_images"] = tasks
     return lock
 def _docker(config: Path) -> list[str]:
@@ -133,13 +127,19 @@ def _install(docker: list[str], pins: Path, lock: Mapping,
 @contextmanager
 def protocol(lock: Mapping | None = None) -> Iterator[None]:
     selected = dict(lock or _load_lock())
-    previous_images, previous_components = product_a.IMAGE_DIGESTS, product_a.COMPONENT_PATHS
-    product_a.IMAGE_DIGESTS = dict(selected["task_images"])
-    product_a.COMPONENT_PATHS = {**previous_components, **COMPONENTS}
+    old_product = product_a.IMAGE_DIGESTS, product_a.COMPONENT_PATHS
+    old_runtime = codex_cli.SUBJECT_CAPABILITY_CONFIGS, sealed.SUBJECT_REQUIRED_CONFIGS, sealed.DISABLED_FEATURES
+    capabilities = tuple("features.code_mode_host=true" if item == "features.code_mode_host=false" else item for item in old_runtime[0])
+    _need(capabilities.count("features.code_mode_host=true") == 1, "public runtime code-mode host binding is invalid")
+    product_a.IMAGE_DIGESTS, product_a.COMPONENT_PATHS = dict(selected["task_images"]), {**old_product[1], **COMPONENTS}
+    codex_cli.SUBJECT_CAPABILITY_CONFIGS = capabilities
+    sealed.SUBJECT_REQUIRED_CONFIGS = (*capabilities, *sealed.SUBJECT_PERMISSION_CONFIGS, *sealed.SUBJECT_SHELL_CONFIGS)
+    sealed.DISABLED_FEATURES = tuple(name for name in old_runtime[2] if name != "code_mode_host")
     try:
         yield
     finally:
-        product_a.IMAGE_DIGESTS, product_a.COMPONENT_PATHS = previous_images, previous_components
+        product_a.IMAGE_DIGESTS, product_a.COMPONENT_PATHS = old_product
+        codex_cli.SUBJECT_CAPABILITY_CONFIGS, sealed.SUBJECT_REQUIRED_CONFIGS, sealed.DISABLED_FEATURES = old_runtime
 @contextmanager
 def activate(input_fn: Callable[[str], str] = input,
              output_fn: Callable[[str], None] = print) -> Iterator[bool]:

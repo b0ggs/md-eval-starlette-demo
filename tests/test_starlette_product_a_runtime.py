@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from unittest import mock
 
+from mdseval.runner import codex_cli
 from scripts.contain import runtime as sealed
 from tooling import starlette_product_a as product_a
 from tooling import starlette_product_a_runtime as runtime
@@ -45,7 +46,7 @@ class ProductAPublicRuntimeTests(unittest.TestCase):
 
     def test_protocol_changes_only_v2_bindings_and_restores_v1(self) -> None:
         old_images = product_a.IMAGE_DIGESTS
-        old_components = product_a.COMPONENT_PATHS
+        old_components, old_capabilities, old_required, old_disabled = product_a.COMPONENT_PATHS, codex_cli.SUBJECT_CAPABILITY_CONFIGS, sealed.SUBJECT_REQUIRED_CONFIGS, sealed.DISABLED_FEATURES
         lock = published_lock()
         with runtime.protocol(lock):
             self.assertEqual(product_a.IMAGE_DIGESTS, lock["task_images"])
@@ -53,8 +54,9 @@ class ProductAPublicRuntimeTests(unittest.TestCase):
                 set(runtime.COMPONENTS),
                 set(product_a.COMPONENT_PATHS) - set(old_components),
             )
+            self.assertEqual((codex_cli.SUBJECT_CAPABILITY_CONFIGS.count("features.code_mode_host=true"), sealed.SUBJECT_REQUIRED_CONFIGS.count("features.code_mode_host=true"), "code_mode_host" in sealed.DISABLED_FEATURES), (1, 1, False)); self.assertNotIn("features.code_mode_host=false", codex_cli.SUBJECT_CAPABILITY_CONFIGS)
         self.assertIs(product_a.IMAGE_DIGESTS, old_images)
-        self.assertIs(product_a.COMPONENT_PATHS, old_components)
+        self.assertIs(product_a.COMPONENT_PATHS, old_components); self.assertIs(codex_cli.SUBJECT_CAPABILITY_CONFIGS, old_capabilities); self.assertIs(sealed.SUBJECT_REQUIRED_CONFIGS, old_required); self.assertIs(sealed.DISABLED_FEATURES, old_disabled)
 
     def test_default_no_declines_download_before_activation(self) -> None:
         output: list[str] = []
