@@ -333,13 +333,14 @@ class ProductAResultsTests(unittest.TestCase):
         fallback.assert_not_called()
 
     def test_checked_in_fresh_run_matches_every_fallback_digest(self) -> None:
-        bundled = results.ROOT / results.RUNS_RELATIVE / results.BUNDLED_FRESH_RUN_ID
-        for relative, expected in results.BUNDLED_FRESH_SHA256.items():
-            self.assertEqual(results._sha256_file(bundled / relative), expected)
-        verified = results._verify_relocated_bundled_run(results.ROOT, bundled)
-        self.assertEqual(verified["manifest"]["execution_mode"], "live_approved")
-        self.assertEqual(len(verified["attempts"]), 72)
-        self.assertEqual(len(verified["pairs"]), 36)
+        for run_id, digests in results.BUNDLED_FRESH_SHA256_BY_RUN.items():
+            bundled = results.ROOT / results.RUNS_RELATIVE / run_id
+            for relative, expected in digests.items():
+                self.assertEqual(results._sha256_file(bundled / relative), expected)
+            verified = results._verify_relocated_bundled_run(results.ROOT, bundled)
+            self.assertEqual(verified["manifest"]["execution_mode"], "live_approved")
+            self.assertEqual(len(verified["attempts"]), 72)
+            self.assertEqual(len(verified["pairs"]), 36)
 
 
 if __name__ == "__main__":

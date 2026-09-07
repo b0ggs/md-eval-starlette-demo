@@ -26,11 +26,7 @@ HISTORICAL_REPORT_RELATIVE = (
     Path("reports") / "STARLETTE_EIGHTEEN_TWO_REPEAT_V2_REPORT.md"
 )
 
-# This one checked-in fresh run predates relocation-safe requests.  Its request
-# intentionally retains the original absolute path, so a clone cannot pass the
-# current-path verifier.  The fallback below is restricted to this exact run and
-# these exact sealed artifact bytes; locally created runs always use the full
-# current-path verifier.
+# Exact digests let path-bound checked-in runs verify after relocation.
 BUNDLED_FRESH_RUN_ID = "product-a-28d43ee1189e43c7a2b987689aa923"
 BUNDLED_FRESH_SHA256 = {
     "REQUEST.json": "2fde00f0154c9051a692414c9a55df04f86e2b59e241d07e533ba0f9d95027eb",
@@ -45,6 +41,23 @@ BUNDLED_FRESH_SHA256 = {
     "live-evidence/scheduler-events.jsonl": "530fe3bb00f849004ab70a75f5953d8108f5b0bf23ea2cc2da0b90acd31fd39d",
     "live-evidence/analysis.json": "19aec237417a1295d9ef33fef18c9a03a19317f4ba6d4cc8ad9aef9308010c6d",
     "live-evidence/execution-manifest.json": "e0b590e7031a34bb8de3debd294cd5f8727729de7ce15874e70c069fb11239cc",
+}
+BUNDLED_FRESH_SHA256_BY_RUN = {
+    BUNDLED_FRESH_RUN_ID: BUNDLED_FRESH_SHA256,
+    "product-a-a3243504c5dc4761b5ee6842d2b9dc": {
+        "REQUEST.json": "34f1e35d5b9e7f5e5f89d492fadc3dd2509a7b436375c633ef558235403b00a9",
+        "APPROVED.json": "ad7d8757dd85a6fa6aea5f0783c7c7b1d48fca91f773b0c901b749d950b4b729",
+        "CONSUMED_APPROVAL.json": "698c47330eb423d09e8ade71c709d53c695bddac25ae45d396c92de8c99d5b65",
+        "REPORT.md": "38007d789f0c6ed3e2ec2ed2d1fb4f0e021de44e1e22467cd55121d1dac2840e",
+        "live-evidence/schedule.json": "01c11c4c0e454e48809ecd7bf07e5fb7714cb804eeb1d5d544d25b92bd279ddb",
+        "live-evidence/preflight.json": "a15b16bd89163fe5a83e824f406d4f6d44192b96654b28836cb8d96dd1707d97",
+        "live-evidence/run-seal.json": "142e92021ed277582f73f4ec4067ac674c13c4a62f50add067aa2b21c2a1140a",
+        "live-evidence/attempts.jsonl": "75d16e0648c15f50d9b106af155d6ba0cf6db9ee879ed75daba4b7aff890bed1",
+        "live-evidence/pairs.jsonl": "67a40575b69053c2218cf9e83584278e880d770d0f6184a7acff6fb0119d8346",
+        "live-evidence/scheduler-events.jsonl": "7709421efc73769bfb9511c0c701c06bd2aa123891cc97199cd03321f3193948",
+        "live-evidence/analysis.json": "748679de5cf77fa8256047815a5ee0e0c5cf8a96f9dd3fcc1961c0c1d1cd21c2",
+        "live-evidence/execution-manifest.json": "4808e9b85e9ce8dee781a915cc7b079edc6e4425e4387f6b8d71115ea5af0514",
+    },
 }
 
 PAIRED_KEYS = (
@@ -146,11 +159,11 @@ def _paired_outcomes(
 
 
 def _verify_relocated_bundled_run(repo_root: Path, run_dir: Path) -> Mapping[str, Any]:
-    """Verify the one legacy path-bound fresh run by its exact sealed digests."""
+    """Verify a path-bound fresh run by its exact sealed digests."""
 
-    _require(run_dir.name == BUNDLED_FRESH_RUN_ID, "not the bundled fresh run")
+    digests = BUNDLED_FRESH_SHA256_BY_RUN.get(run_dir.name)
     _require(
-        run_dir.parent == repo_root / RUNS_RELATIVE
+        digests is not None and run_dir.parent == repo_root / RUNS_RELATIVE
         and run_dir.is_dir()
         and not run_dir.is_symlink(),
         "bundled fresh run is outside the expected repository location",
@@ -160,7 +173,7 @@ def _verify_relocated_bundled_run(repo_root: Path, run_dir: Path) -> Mapping[str
         == {"REQUEST.json", "APPROVED.json", "CONSUMED_APPROVAL.json", "REPORT.md", "live-evidence"},
         "bundled fresh run inventory differs",
     )
-    for relative, expected in BUNDLED_FRESH_SHA256.items():
+    for relative, expected in digests.items():
         path = run_dir / relative
         _require(path.is_file() and not path.is_symlink(), f"bundled artifact is missing: {relative}")
         _require(_sha256_file(path) == expected, f"bundled artifact changed: {relative}")
@@ -206,10 +219,10 @@ def _verify_relocated_bundled_run(repo_root: Path, run_dir: Path) -> Mapping[str
         "bundled workspace evidence changed",
     )
     request = _read_json(run_dir / "REQUEST.json")
-    _require(request.get("run_id") == BUNDLED_FRESH_RUN_ID, "bundled request identity differs")
+    _require(request.get("run_id") == run_dir.name, "bundled request identity differs")
     return {
         "request": request,
-        "request_sha256": BUNDLED_FRESH_SHA256["REQUEST.json"],
+        "request_sha256": digests["REQUEST.json"],
         "manifest": manifest,
         "analysis": _read_json(evidence / "analysis.json"),
         "attempts": _read_jsonl(evidence / "attempts.jsonl"),
@@ -239,9 +252,9 @@ def _default_verify_run(repo_root: Path, run_dir: Path) -> Mapping[str, Any]:
         request = _read_json(request_path)
         recorded_directory = Path(str(request.get("run_directory", ""))).absolute()
         relocated_exact_bundle = (
-            run_dir.name == BUNDLED_FRESH_RUN_ID
+            (digests := BUNDLED_FRESH_SHA256_BY_RUN.get(run_dir.name)) is not None
             and recorded_directory != run_dir.absolute()
-            and _sha256_file(request_path) == BUNDLED_FRESH_SHA256["REQUEST.json"]
+            and _sha256_file(request_path) == digests["REQUEST.json"]
         )
         if relocated_exact_bundle:
             return _verify_relocated_bundled_run(repo_root, run_dir)
